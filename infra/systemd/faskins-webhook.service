@@ -1,0 +1,17 @@
+[Unit]
+Description=FA Skins — GitHub Webhook
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/fa-skins-tokenization/infra/webhook
+Environment=WEBHOOK_SECRET=очень_секретная_строка
+ExecStart=/usr/bin/node webhook.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

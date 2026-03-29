@@ -1,0 +1,17 @@
+[Unit]
+Description=FA Skins — Celery Worker
+After=network.target redis.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/fa-skins-tokenization/backend
+EnvironmentFile=/var/www/fa-skins-tokenization/.env
+ExecStart=/var/www/fa-skins-tokenization/.venv/bin/celery -A workers.celery_app worker --loglevel=info -Q steam,celery
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

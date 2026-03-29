@@ -1,0 +1,17 @@
+[Unit]
+Description=FA Skins — FastAPI
+After=network.target postgresql.service redis.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/fa-skins-tokenization/backend
+EnvironmentFile=/var/www/fa-skins-tokenization/.env
+ExecStart=/var/www/fa-skins-tokenization/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
