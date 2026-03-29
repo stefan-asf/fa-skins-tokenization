@@ -30,5 +30,8 @@ class Settings(BaseSettings):
 
     steam_api_key: str = ""
 
+    base_url: str = "https://fa.stfnasf.tech"
+    jwt_expire_hours: int = 168
+
 
 settings = Settings()
