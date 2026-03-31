@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FA Skins</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Nav ── -->
+    <nav>
+      <div class="nav-logo">FA<span>Skins</span></div>
+      <div class="nav-right">
+        <div id="lang-switcher"></div>
+        <span id="nav-balance" class="hidden"></span>
+        <span id="nav-wallet" class="hidden"></span>
+        <button id="btn-wallet" class="btn-secondary hidden"></button>
+        <button id="btn-login" class="btn-primary hidden"></button>
+        <button id="btn-logout" class="btn-ghost hidden">—</button>
+      </div>
+    </nav>
+
+    <!-- ── Main ── -->
+    <main>
+
+      <!-- Left column -->
+      <div class="left-col">
+        <div class="hero">
+          <div class="hero-text">
+            <h1 id="hero-title"></h1>
+            <p id="hero-subtitle"></p>
+          </div>
+          <div class="hero-actions">
+            <button id="hero-deposit-btn" class="btn-primary" disabled></button>
+            <button id="hero-withdraw-btn" class="btn-secondary" disabled></button>
+          </div>
+        </div>
+
+        <!-- Inventory -->
+        <section id="inventory-section" class="hidden">
+          <h2 id="inventory-title"></h2>
+          <div class="inventory-grid" id="inventory-grid"></div>
+          <p id="inventory-empty" class="inventory-msg hidden"></p>
+          <p id="inventory-private" class="inventory-msg hidden"></p>
+        </section>
+      </div>
+
+      <!-- Right column: History -->
+      <div class="history-panel">
+        <div class="history-panel-header" id="history-title"></div>
+        <div class="history-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th id="history-col-type"></th>
+                <th id="history-col-skin"></th>
+                <th id="history-col-status"></th>
+                <th id="history-col-date"></th>
+                <th id="history-col-tx"></th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr><td colspan="5" class="history-empty">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── Overlay ── -->
+  <div id="modal-overlay" class="hidden">
+
+    <!-- Deposit modal -->
+    <div id="deposit-modal" class="modal hidden" role="dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="deposit-modal-title"></span>
+        <button class="modal-close" id="deposit-modal-close">✕</button>
+      </div>
+      <p class="modal-step" id="deposit-step1"></p>
+      <a id="bot-trade-link" class="bot-trade-link" href="#" target="_blank">—</a>
+      <p class="modal-step" id="deposit-step2"></p>
+      <button id="deposit-confirm-btn" class="btn-primary"></button>
+      <div id="deposit-status" class="status-bar"></div>
+    </div>
+
+    <!-- Withdraw modal -->
+    <div id="withdraw-modal" class="modal hidden" role="dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="withdraw-modal-title"></span>
+        <button class="modal-close" id="withdraw-modal-close">✕</button>
+      </div>
+      <div>
+        <label id="withdraw-balance-label"></label>
+        <span id="withdraw-balance-value" style="font-weight:700;color:var(--primary-color)"></span>
+      </div>
+      <div>
+        <label id="withdraw-trade-url-label"></label>
+        <input type="url" id="withdraw-trade-url" />
+      </div>
+      <button id="withdraw-confirm-btn" class="btn-primary"></button>
+      <div id="withdraw-status" class="status-bar"></div>
+    </div>
+
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
