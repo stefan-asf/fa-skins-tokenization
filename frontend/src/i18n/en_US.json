@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "connect_metamask": "Connect Wallet",
+    "login_steam": "Sign in with Steam",
+    "logout": "Sign out",
+    "balance": "Balance"
+  },
+  "hero": {
+    "title": "Tokenize Your Skin",
+    "subtitle": "Deposit your P250 Sand Dune (Minimal Wear) — receive an ERC-20 token on Sepolia. Burn the token — get your skin back.",
+    "deposit_btn": "Deposit",
+    "withdraw_btn": "Withdraw"
+  },
+  "inventory": {
+    "title": "Your Inventory",
+    "empty": "No P250 Sand Dune (Minimal Wear) skins available",
+    "private": "Your Steam inventory is private. Change it to public in Steam settings.",
+    "not_tradable": "Not tradable",
+    "tradable": "Tradable",
+    "deposit_btn": "Deposit"
+  },
+  "deposit_modal": {
+    "title": "Deposit Skin",
+    "skin_name": "P250 | Sand Dune (Minimal Wear)",
+    "step1": "Send a trade offer to our bot:",
+    "trade_link_label": "Bot trade link",
+    "step2": "After sending — click the button below",
+    "confirm_btn": "I sent the trade offer",
+    "status_waiting": "Waiting for trade",
+    "status_accepted": "Trade accepted",
+    "status_minted": "Token issued",
+    "status_failed": "Failed"
+  },
+  "withdraw_modal": {
+    "title": "Withdraw Skin",
+    "balance_label": "Your token balance",
+    "trade_url_label": "Your Steam Trade URL",
+    "trade_url_placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
+    "confirm_btn": "Burn token & receive skin",
+    "status_burning": "Burning token",
+    "status_sending": "Bot is sending skin",
+    "status_delivered": "Delivered",
+    "status_failed": "Failed",
+    "no_tokens": "You have no tokens to withdraw"
+  },
+  "history": {
+    "title": "History",
+    "col_type": "Type",
+    "col_skin": "Skin",
+    "col_status": "Status",
+    "col_date": "Date",
+    "col_tx": "TX",
+    "type_deposit": "Deposit",
+    "type_withdraw": "Withdraw",
+    "empty": "No operations yet"
+  },
+  "errors": {
+    "metamask_not_found": "MetaMask not found. Please install it.",
+    "not_logged_in": "Please sign in with Steam first",
+    "no_wallet": "Please connect your wallet first",
+    "inventory_load_failed": "Failed to load inventory",
+    "generic": "Something went wrong"
+  }
+}

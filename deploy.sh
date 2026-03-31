@@ -26,6 +26,18 @@ echo "[deploy] Running migrations..."
 cd "$REPO/backend"
 "$VENV/bin/alembic" upgrade head
 
+# --- Frontend ---
+echo "[deploy] Syncing frontend..."
+DIST="$REPO/frontend/dist"
+SRC="$REPO/frontend/src"
+cp "$SRC/style.css" "$DIST/style.css"
+cp "$SRC/app.js" "$DIST/app.js"
+cp "$SRC/api.js" "$DIST/api.js"
+cp "$SRC/metamask.js" "$DIST/metamask.js"
+mkdir -p "$DIST/i18n"
+cp "$SRC/i18n/en_US.json" "$DIST/i18n/en_US.json"
+cp "$SRC/i18n/ru_RU.json" "$DIST/i18n/ru_RU.json"
+
 # --- Restart services ---
 echo "[deploy] Restarting services..."
 sudo systemctl restart faskins-api

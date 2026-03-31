@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "connect_metamask": "Подключить кошелёк",
+    "login_steam": "Войти через Steam",
+    "logout": "Выйти",
+    "balance": "Баланс"
+  },
+  "hero": {
+    "title": "Токенизируй свой скин",
+    "subtitle": "Депонируй P250 Sand Dune (Minimal Wear) — получи ERC-20 токен на Sepolia. Сожги токен — верни скин.",
+    "deposit_btn": "Депозит",
+    "withdraw_btn": "Вывод"
+  },
+  "inventory": {
+    "title": "Ваш инвентарь",
+    "empty": "Нет скинов P250 Sand Dune (Minimal Wear)",
+    "private": "Ваш инвентарь Steam закрыт. Сделайте его публичным в настройках Steam.",
+    "not_tradable": "Не торгуемый",
+    "tradable": "Торгуемый",
+    "deposit_btn": "Депонировать"
+  },
+  "deposit_modal": {
+    "title": "Депозит скина",
+    "skin_name": "P250 | Sand Dune (Minimal Wear)",
+    "step1": "Отправьте трейд-оффер нашему боту:",
+    "trade_link_label": "Ссылка на трейд бота",
+    "step2": "После отправки — нажмите кнопку ниже",
+    "confirm_btn": "Я отправил трейд-оффер",
+    "status_waiting": "Ожидание трейда",
+    "status_accepted": "Трейд принят",
+    "status_minted": "Токен выпущен",
+    "status_failed": "Ошибка"
+  },
+  "withdraw_modal": {
+    "title": "Вывод скина",
+    "balance_label": "Ваш баланс токенов",
+    "trade_url_label": "Ваша Trade URL в Steam",
+    "trade_url_placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
+    "confirm_btn": "Сжечь токен и получить скин",
+    "status_burning": "Сжигание токена",
+    "status_sending": "Бот отправляет скин",
+    "status_delivered": "Доставлено",
+    "status_failed": "Ошибка",
+    "no_tokens": "У вас нет токенов для вывода"
+  },
+  "history": {
+    "title": "История",
+    "col_type": "Тип",
+    "col_skin": "Скин",
+    "col_status": "Статус",
+    "col_date": "Дата",
+    "col_tx": "TX",
+    "type_deposit": "Депозит",
+    "type_withdraw": "Вывод",
+    "empty": "Нет операций"
+  },
+  "errors": {
+    "metamask_not_found": "MetaMask не найден. Установите расширение.",
+    "not_logged_in": "Сначала войдите через Steam",
+    "no_wallet": "Сначала подключите кошелёк",
+    "inventory_load_failed": "Не удалось загрузить инвентарь",
+    "generic": "Что-то пошло не так"
+  }
+}
