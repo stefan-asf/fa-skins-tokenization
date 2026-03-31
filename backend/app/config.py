@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     steam_trade_link: str = ""
     steam_shared_secret: str = ""
     steam_identity_secret: str = ""
+    steam_login_secure: str = ""
+    steam_session_id: str = ""
 
     sepolia_rpc_url: str = ""
     deployer_private_key: str = ""

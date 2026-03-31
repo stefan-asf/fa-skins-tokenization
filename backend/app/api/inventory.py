@@ -13,13 +13,20 @@ CS2_CONTEXT_ID = 2
 
 
 async def _fetch_inventory(steam_id: str) -> dict:
-    url = f"https://steamcommunity.com/profiles/{steam_id}/inventory/json/{CS2_APP_ID}/{CS2_CONTEXT_ID}/"
-    params = {"l": "english"}
-    if settings.steam_api_key:
-        params["key"] = settings.steam_api_key
+    url = f"https://steamcommunity.com/inventory/{steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
+    params = {"l": "english", "count": 5000}
+    cookies = {
+        "steamLoginSecure": settings.steam_login_secure,
+        "sessionid": settings.steam_session_id,
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Referer": f"https://steamcommunity.com/profiles/{steam_id}/inventory/",
+    }
 
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(url, params=params)
+        resp = await client.get(url, params=params, cookies=cookies, headers=headers)
 
     if resp.status_code == 403:
         raise HTTPException(status_code=403, detail="Steam inventory is private")
@@ -36,17 +43,18 @@ async def _fetch_inventory(steam_id: str) -> dict:
 async def get_inventory(user: User = Depends(get_current_user)):
     data = await _fetch_inventory(user.steam_id)
 
-    rg_inv = data.get("rgInventory", {})
-    rg_desc = data.get("rgDescriptions", {})
+    desc_map = {
+        (d["classid"], d["instanceid"]): d
+        for d in data.get("descriptions", [])
+    }
 
     items = []
-    for asset in rg_inv.values():
-        key = f"{asset['classid']}_{asset['instanceid']}"
-        desc = rg_desc.get(key, {})
-        if desc.get("market_hash_name") != SKIN_NAME:
+    for asset in data.get("assets", []):
+        desc = desc_map.get((asset["classid"], asset["instanceid"]))
+        if not desc or desc.get("market_hash_name") != SKIN_NAME:
             continue
         items.append({
-            "asset_id": asset["id"],
+            "asset_id": asset["assetid"],
             "name": desc.get("name", SKIN_NAME),
             "market_hash_name": SKIN_NAME,
             "icon_url": "https://community.akamai.steamstatic.com/economy/image/" + desc["icon_url"]
