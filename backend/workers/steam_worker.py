@@ -47,7 +47,9 @@ def accept_deposit_trade(self, deposit_id: int, trade_offer_id: str):
             deposit.status = "accepted"
             db.commit()
             _log(db, "deposit", deposit_id, "trade_accepted", trade_offer_id)
-            logger.info("Deposit %d accepted, ready for mint", deposit_id)
+            from workers.blockchain_worker import mint_for_deposit
+            mint_for_deposit.delay(deposit_id)
+            logger.info("Deposit %d accepted, mint queued", deposit_id)
         else:
             deposit.status = "failed"
             db.commit()

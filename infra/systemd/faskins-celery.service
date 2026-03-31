@@ -7,7 +7,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/fa-skins-tokenization/backend
 EnvironmentFile=/var/www/fa-skins-tokenization/.env
-ExecStart=/var/www/fa-skins-tokenization/.venv/bin/celery -A workers.celery_app worker --loglevel=info -Q steam,celery
+ExecStart=/var/www/fa-skins-tokenization/.venv/bin/celery -A workers.celery_app worker --loglevel=info -Q steam,blockchain,celery
 Restart=always
 RestartSec=10
 StandardOutput=journal

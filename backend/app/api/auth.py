@@ -8,6 +8,7 @@ from app.db import get_db
 from app.models.user import User
 from app.services.steam_openid import get_login_redirect_url, verify_and_get_steam_id
 from app.services.jwt_utils import create_token
+from app.services.blockchain import get_balance
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -73,6 +74,14 @@ def set_wallet(
     user.wallet_address = addr
     db.commit()
     return {"wallet_address": user.wallet_address}
+
+
+@router.get("/balance")
+def get_token_balance(user: User = Depends(get_current_user)):
+    if not user.wallet_address:
+        return {"balance": 0, "wallet_address": None}
+    raw = get_balance(user.wallet_address)
+    return {"balance": raw // 10**18, "wallet_address": user.wallet_address}
 
 
 @router.post("/logout")
