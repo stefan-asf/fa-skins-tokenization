@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     sepolia_rpc_url: str = ""
     deployer_private_key: str = ""
-    skin_vault_address: str = ""
+    skin_token_address: str = ""
 
     steam_api_key: str = ""
 
