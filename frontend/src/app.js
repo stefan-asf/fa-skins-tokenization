@@ -279,48 +279,15 @@ async function refreshBalance() {
   } catch {}
 }
 
-const SKIN_NAME = "P250 | Sand Dune (Minimal Wear)";
-
-async function fetchSteamInventory(steamId) {
-  const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`;
-  const resp = await fetch(url);
-  if (resp.status === 403) throw new Error("private");
-  if (!resp.ok) throw new Error("unavailable");
-  const data = await resp.json();
-  if (!data || !data.success) throw new Error("private");
-
-  const descMap = {};
-  for (const d of data.descriptions || []) {
-    descMap[`${d.classid}_${d.instanceid}`] = d;
-  }
-
-  const items = [];
-  for (const asset of data.assets || []) {
-    const desc = descMap[`${asset.classid}_${asset.instanceid}`];
-    if (!desc) continue;
-    if (desc.market_hash_name !== SKIN_NAME) continue;
-    items.push({
-      asset_id: asset.assetid,
-      name: desc.name || SKIN_NAME,
-      market_hash_name: SKIN_NAME,
-      icon_url: desc.icon_url
-        ? `https://community.akamai.steamstatic.com/economy/image/${desc.icon_url}`
-        : null,
-      tradable: desc.tradable === 1,
-    });
-  }
-  return items;
-}
-
 async function loadInventory() {
   if (!state.user) return;
   try {
-    const items = await fetchSteamInventory(state.user.steam_id);
-    state.inventory = items;
+    const data = await api.getInventory();
+    state.inventory = data.items;
     state.inventoryError = null;
   } catch (e) {
     state.inventory = [];
-    state.inventoryError = e.message === "private" ? "private" : "error";
+    state.inventoryError = e.message.includes("private") ? "private" : "error";
   }
 }
 
