@@ -2,7 +2,6 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_current_user
-from app.config import settings
 from app.models.user import User
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -13,30 +12,35 @@ CS2_CONTEXT_ID = 2
 
 
 async def _fetch_inventory(steam_id: str) -> dict:
-    inv_url = f"https://steamcommunity.com/inventory/{steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
-    params = {"l": "english", "count": 5000}
-    if settings.steam_api_key:
-        params["key"] = settings.steam_api_key
-
+    url = f"https://steamcommunity.com/profiles/{steam_id}/inventory/json/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
+    params = {"l": "english"}
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": f"https://steamcommunity.com/profiles/{steam_id}/inventory/",
     }
 
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(inv_url, params=params, headers=headers)
+        resp = await client.get(url, params=params, headers=headers)
 
     if resp.status_code == 403:
         raise HTTPException(status_code=403, detail="Steam inventory is private")
-    if resp.status_code != 200 or not resp.text or resp.text == "null":
+    if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Steam API error: {resp.status_code}")
 
     data = resp.json()
-    if not data or not data.get("assets"):
-        return {"assets": [], "descriptions": []}
-    return data
+    if not data or not data.get("success"):
+        raise HTTPException(status_code=403, detail="Steam inventory is private")
+
+    # Normalize to standard format
+    rg_inv = data.get("rgInventory", {})
+    rg_desc = data.get("rgDescriptions", {})
+
+    assets = [
+        {"assetid": item["id"], "classid": item["classid"], "instanceid": item["instanceid"]}
+        for item in rg_inv.values()
+    ]
+    descriptions = list(rg_desc.values())
+    return {"assets": assets, "descriptions": descriptions}
 
 
 @router.get("")
