@@ -6,7 +6,7 @@ from app.models.user import User
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
-SKIN_NAME = "P250 | Sand Dune (Field-Tested)"
+SKIN_NAME = "P250 | Sand Dune (Minimal Wear)"
 CS2_APP_ID = 730
 CS2_CONTEXT_ID = 2
 
