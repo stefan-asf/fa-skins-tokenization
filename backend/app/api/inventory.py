@@ -11,18 +11,62 @@ CS2_APP_ID = 730
 CS2_CONTEXT_ID = 2
 
 
+async def _fetch_inventory(steam_id: str) -> dict:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://steamcommunity.com/",
+    }
+    # Try new endpoint first, fall back to old one
+    urls = [
+        (f"https://steamcommunity.com/inventory/{steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}",
+         {"l": "english", "count": 5000}),
+        (f"https://steamcommunity.com/profiles/{steam_id}/inventory/json/{CS2_APP_ID}/{CS2_CONTEXT_ID}",
+         {"l": "english"}),
+    ]
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for url, params in urls:
+            resp = await client.get(url, params=params, headers=headers)
+            if resp.status_code == 403:
+                raise HTTPException(status_code=403, detail="Steam inventory is private")
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            if not data:
+                continue
+            # Old endpoint uses different structure
+            if "rgInventory" in data:
+                return _normalize_old_format(data)
+            if data.get("assets"):
+                return data
+    raise HTTPException(status_code=502, detail="Steam API unavailable")
+
+
+def _normalize_old_format(data: dict) -> dict:
+    descriptions_raw = data.get("rgDescriptions", {})
+    assets = []
+    descriptions = []
+    seen = set()
+    for asset_id, asset in data.get("rgInventory", {}).items():
+        key = f"{asset['classid']}_{asset['instanceid']}"
+        assets.append({
+            "assetid": asset_id,
+            "classid": asset["classid"],
+            "instanceid": asset["instanceid"],
+        })
+        if key not in seen:
+            seen.add(key)
+            desc = descriptions_raw.get(key, {})
+            desc["classid"] = asset["classid"]
+            desc["instanceid"] = asset["instanceid"]
+            descriptions.append(desc)
+    return {"assets": assets, "descriptions": descriptions}
+
+
 @router.get("")
 async def get_inventory(user: User = Depends(get_current_user)):
-    url = f"https://steamcommunity.com/inventory/{user.steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url, params={"l": "english", "count": 5000})
-
-    if resp.status_code == 403:
-        raise HTTPException(status_code=403, detail="Steam inventory is private")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Steam API unavailable")
-
-    data = resp.json()
+    data = await _fetch_inventory(user.steam_id)
     descriptions = {
         (d["classid"], d["instanceid"]): d
         for d in data.get("descriptions", [])
@@ -49,13 +93,7 @@ async def get_inventory(user: User = Depends(get_current_user)):
 
 @router.get("/debug")
 async def debug_inventory(user: User = Depends(get_current_user)):
-    url = f"https://steamcommunity.com/inventory/{user.steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url, params={"l": "english", "count": 5000}, headers=headers)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Steam returned {resp.status_code}: {resp.text[:300]}")
-    data = resp.json()
+    data = await _fetch_inventory(user.steam_id)
     descriptions = {
         (d["classid"], d["instanceid"]): d
         for d in data.get("descriptions", [])
