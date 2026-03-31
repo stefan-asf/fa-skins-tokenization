@@ -50,10 +50,11 @@ async def get_inventory(user: User = Depends(get_current_user)):
 @router.get("/debug")
 async def debug_inventory(user: User = Depends(get_current_user)):
     url = f"https://steamcommunity.com/inventory/{user.steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url, params={"l": "english", "count": 5000})
+        resp = await client.get(url, params={"l": "english", "count": 5000}, headers=headers)
     if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Steam returned {resp.status_code}")
+        raise HTTPException(status_code=502, detail=f"Steam returned {resp.status_code}: {resp.text[:300]}")
     data = resp.json()
     descriptions = {
         (d["classid"], d["instanceid"]): d
