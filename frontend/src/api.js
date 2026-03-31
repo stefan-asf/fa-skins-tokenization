@@ -18,7 +18,13 @@ export const api = {
       body: JSON.stringify({ wallet_address }),
     }),
   getBalance: () => req("/auth/balance"),
-  getInventory: () => req("/inventory"),
+  getSteamId: () => req("/inventory/steam_id"),
+  submitInventory: (items) =>
+    req("/inventory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    }),
   createDeposit: (asset_id) =>
     req("/deposit", {
       method: "POST",
