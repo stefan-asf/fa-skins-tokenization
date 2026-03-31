@@ -1,53 +1,21 @@
-import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.api.deps import get_current_user
-from app.config import settings
 from app.models.user import User
+from app.services.steam_inventory import fetch_user_inventory
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 SKIN_NAME = "P250 | Sand Dune (Minimal Wear)"
-CS2_APP_ID = 730
-CS2_CONTEXT_ID = 2
-
-
-async def _fetch_inventory(steam_id: str) -> dict:
-    url = f"https://steamcommunity.com/inventory/{steam_id}/{CS2_APP_ID}/{CS2_CONTEXT_ID}"
-    params = {"l": "english", "count": 5000}
-    cookies = {
-        "steamLoginSecure": settings.steam_login_secure,
-        "sessionid": settings.steam_session_id,
-    }
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        "Referer": f"https://steamcommunity.com/profiles/{steam_id}/inventory/",
-    }
-
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(url, params=params, cookies=cookies, headers=headers)
-
-    if resp.status_code == 403:
-        raise HTTPException(status_code=403, detail="Steam inventory is private")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Steam returned {resp.status_code}")
-
-    data = resp.json()
-    if not data or not data.get("success"):
-        raise HTTPException(status_code=403, detail="Steam inventory is private")
-    return data
 
 
 @router.get("")
-async def get_inventory(user: User = Depends(get_current_user)):
-    data = await _fetch_inventory(user.steam_id)
-
+def get_inventory(user: User = Depends(get_current_user)):
+    data = fetch_user_inventory(user.steam_id)
     desc_map = {
         (d["classid"], d["instanceid"]): d
         for d in data.get("descriptions", [])
     }
-
     items = []
     for asset in data.get("assets", []):
         desc = desc_map.get((asset["classid"], asset["instanceid"]))
@@ -61,16 +29,4 @@ async def get_inventory(user: User = Depends(get_current_user)):
                         if desc.get("icon_url") else None,
             "tradable": desc.get("tradable", 0) == 1,
         })
-
     return {"items": items, "count": len(items)}
-
-
-@router.get("/debug")
-async def debug_inventory(user: User = Depends(get_current_user)):
-    url = f"https://steamcommunity.com/profiles/{user.steam_id}/inventory/json/{CS2_APP_ID}/{CS2_CONTEXT_ID}/"
-    params = {"l": "english"}
-    if settings.steam_api_key:
-        params["key"] = settings.steam_api_key
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(url, params=params)
-    return {"status": resp.status_code, "body": resp.text[:300]}
