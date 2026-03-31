@@ -2,11 +2,13 @@
 Получение инвентаря пользователя через авторизованную сессию бота.
 Бот логинится один раз, сессия кешируется на весь процесс.
 """
+import json
 import logging
+import os
+import tempfile
 import threading
 
 from steampy.client import SteamClient
-from steampy.models import GameOptions
 
 from app.config import settings
 
@@ -14,8 +16,26 @@ logger = logging.getLogger(__name__)
 
 _client: SteamClient | None = None
 _lock = threading.Lock()
+_mafile_path: str | None = None
 
-CS2 = GameOptions.CS
+
+def _get_mafile_path() -> str:
+    global _mafile_path
+    if _mafile_path and os.path.exists(_mafile_path):
+        return _mafile_path
+    data = {
+        "shared_secret": settings.steam_shared_secret,
+        "identity_secret": settings.steam_identity_secret,
+        "account_name": settings.steam_login,
+        "Session": {
+            "SteamID": int(settings.steam_steam_id) if settings.steam_steam_id else 0,
+        },
+    }
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".mafile", delete=False)
+    json.dump(data, tmp)
+    tmp.close()
+    _mafile_path = tmp.name
+    return _mafile_path
 
 
 def _get_client() -> SteamClient:
@@ -24,14 +44,11 @@ def _get_client() -> SteamClient:
         if _client is not None and _client.is_session_alive():
             return _client
         logger.info("Logging in Steam bot: %s", settings.steam_login)
-        client = SteamClient(settings.steam_login)
+        client = SteamClient(settings.steam_api_key or "")
         client.login(
             username=settings.steam_login,
             password=settings.steam_password,
-            steam_guard={
-                "shared_secret": settings.steam_shared_secret,
-                "identity_secret": settings.steam_identity_secret,
-            },
+            steam_guard=_get_mafile_path(),
         )
         _client = client
         logger.info("Steam bot session established")
