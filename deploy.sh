@@ -36,6 +36,7 @@ cp "$SRC/style.css" "$DIST/style.css"
 cp "$SRC/app.js" "$DIST/app.js"
 cp "$SRC/api.js" "$DIST/api.js"
 cp "$SRC/metamask.js" "$DIST/metamask.js"
+cp "$SRC/i18n/index.js" "$DIST/i18n/index.js"
 cp "$SRC/i18n/en_US.json" "$DIST/i18n/en_US.json"
 cp "$SRC/i18n/ru_RU.json" "$DIST/i18n/ru_RU.json"
 
