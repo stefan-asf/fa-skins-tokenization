@@ -55,3 +55,14 @@ async def get_inventory(user: User = Depends(get_current_user)):
         })
 
     return {"items": items, "count": len(items)}
+
+
+@router.get("/debug")
+async def debug_inventory(user: User = Depends(get_current_user)):
+    url = f"https://steamcommunity.com/profiles/{user.steam_id}/inventory/json/{CS2_APP_ID}/{CS2_CONTEXT_ID}/"
+    params = {"l": "english"}
+    if settings.steam_api_key:
+        params["key"] = settings.steam_api_key
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        resp = await client.get(url, params=params)
+    return {"status": resp.status_code, "body": resp.text[:300]}
