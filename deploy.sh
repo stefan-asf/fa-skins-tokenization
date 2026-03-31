@@ -29,12 +29,13 @@ cd "$REPO/backend"
 # --- Frontend ---
 echo "[deploy] Syncing frontend..."
 DIST="$REPO/frontend/dist"
+mkdir -p "$DIST/i18n"
 SRC="$REPO/frontend/src"
+cp "$REPO/frontend/dist/index.html" "$DIST/index.html" 2>/dev/null || true
 cp "$SRC/style.css" "$DIST/style.css"
 cp "$SRC/app.js" "$DIST/app.js"
 cp "$SRC/api.js" "$DIST/api.js"
 cp "$SRC/metamask.js" "$DIST/metamask.js"
-mkdir -p "$DIST/i18n"
 cp "$SRC/i18n/en_US.json" "$DIST/i18n/en_US.json"
 cp "$SRC/i18n/ru_RU.json" "$DIST/i18n/ru_RU.json"
 
