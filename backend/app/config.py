@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     skin_token_address: str = ""
 
     steam_api_key: str = ""
+    steam_mafile_path: str = ""
 
     base_url: str = "https://fa.stfnasf.tech"
     jwt_expire_hours: int = 168
