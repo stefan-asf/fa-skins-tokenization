@@ -5,6 +5,7 @@
 import json
 import logging
 import os
+import tempfile
 import threading
 
 from steampy.client import SteamClient
@@ -15,25 +16,36 @@ logger = logging.getLogger(__name__)
 
 _client: SteamClient | None = None
 _lock = threading.Lock()
+_mafile_path: str | None = None
 
 
-def _get_steam_guard() -> dict:
+def _get_mafile_path() -> str:
     """
-    Возвращает dict с shared_secret и identity_secret.
-    Если задан STEAM_MAFILE_PATH — читает из реального mafile.
-    Иначе берёт из STEAM_SHARED_SECRET / STEAM_IDENTITY_SECRET.
+    Возвращает путь к mafile для steampy.
+    Если задан STEAM_MAFILE_PATH — использует его напрямую.
+    Иначе создаёт временный mafile из STEAM_SHARED_SECRET / STEAM_IDENTITY_SECRET.
     """
+    global _mafile_path
+
     if settings.steam_mafile_path and os.path.exists(settings.steam_mafile_path):
-        with open(settings.steam_mafile_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return {
-            "shared_secret": data["shared_secret"],
-            "identity_secret": data["identity_secret"],
-        }
-    return {
+        return settings.steam_mafile_path
+
+    if _mafile_path and os.path.exists(_mafile_path):
+        return _mafile_path
+
+    data = {
         "shared_secret": settings.steam_shared_secret,
         "identity_secret": settings.steam_identity_secret,
+        "account_name": settings.steam_login,
+        "Session": {
+            "SteamID": int(settings.steam_steam_id) if settings.steam_steam_id else 0,
+        },
     }
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".mafile", delete=False)
+    json.dump(data, tmp)
+    tmp.close()
+    _mafile_path = tmp.name
+    return _mafile_path
 
 
 def _get_client() -> SteamClient:
@@ -46,7 +58,7 @@ def _get_client() -> SteamClient:
         client.login(
             username=settings.steam_login,
             password=settings.steam_password,
-            steam_guard=_get_steam_guard(),
+            steam_guard=_get_mafile_path(),
         )
         _client = client
         logger.info("Steam bot session established")

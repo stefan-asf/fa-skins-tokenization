@@ -10,14 +10,12 @@ GAME = GameOptions.CS
 
 def get_client() -> SteamClient:
     """Создаёт и возвращает авторизованный SteamClient."""
-    client = SteamClient(settings.steam_login)
+    from app.services.steam_inventory import _get_mafile_path
+    client = SteamClient(settings.steam_api_key or "")
     client.login(
         username=settings.steam_login,
         password=settings.steam_password,
-        steam_guard={
-            "shared_secret": settings.steam_shared_secret,
-            "identity_secret": settings.steam_identity_secret,
-        },
+        steam_guard=_get_mafile_path(),
     )
     logger.info("Steam bot logged in as %s", settings.steam_login)
     return client
