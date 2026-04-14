@@ -10,8 +10,6 @@ import logging
 import os
 import tempfile
 import threading
-from urllib.parse import unquote
-
 import requests
 from steampy.client import SteamClient
 
@@ -67,18 +65,21 @@ def _session_from_mafile(path: str) -> requests.Session | None:
         session_id = sess.get("SessionID")
         if not login_secure:
             return None
-        # mafile хранит значение URL-encoded, Steam ожидает декодированное
-        login_secure = unquote(login_secure)
-        s = requests.Session()
-        s.cookies.set("steamLoginSecure", login_secure, domain=".steamcommunity.com")
+        # Передаём куки напрямую в заголовке — обходим проблемы domain matching в requests
+        cookie_str = f"steamLoginSecure={login_secure}"
         if session_id:
-            s.cookies.set("sessionid", str(session_id), domain=".steamcommunity.com")
+            cookie_str += f"; sessionid={session_id}"
+        s = requests.Session()
         s.headers.update({
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/124.0.0.0 Safari/537.36"
             ),
+            "Cookie": cookie_str,
+            "Referer": "https://steamcommunity.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
         })
         logger.info("Steam session loaded from mafile cookies")
         return s
