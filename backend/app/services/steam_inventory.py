@@ -137,6 +137,7 @@ def fetch_user_inventory(steam_id: str) -> dict:
         timeout=20,
     )
 
+    logger.warning("Steam inventory request: url=%s", url)
     logger.warning("Steam inventory response: status=%s body=%s", resp.status_code, resp.text[:500])
     if resp.status_code == 403:
         raise HTTPException(status_code=403, detail="Steam inventory is private")
