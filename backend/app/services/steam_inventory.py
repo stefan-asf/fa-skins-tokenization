@@ -1,6 +1,9 @@
 """
-Получение инвентаря пользователя через авторизованную сессию бота.
-Бот логинится один раз, сессия кешируется на весь процесс.
+Получение инвентаря пользователя через сессию бота.
+
+Если задан STEAM_MAFILE_PATH и mafile содержит Session.steamLoginSecure —
+используем куки из mafile напрямую (без логина через username/password).
+Это надёжнее, чем логин с VPS-IP, который Steam часто блокирует.
 """
 import json
 import logging
@@ -8,12 +11,14 @@ import os
 import tempfile
 import threading
 
+import requests
 from steampy.client import SteamClient
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+_session: requests.Session | None = None
 _client: SteamClient | None = None
 _lock = threading.Lock()
 _mafile_path: str | None = None
@@ -21,9 +26,9 @@ _mafile_path: str | None = None
 
 def _get_mafile_path() -> str:
     """
-    Возвращает путь к mafile для steampy.
+    Возвращает путь к mafile.
     Если задан STEAM_MAFILE_PATH — использует его напрямую.
-    Иначе создаёт временный mafile из STEAM_SHARED_SECRET / STEAM_IDENTITY_SECRET.
+    Иначе создаёт временный mafile из env-переменных.
     """
     global _mafile_path
 
@@ -48,21 +53,70 @@ def _get_mafile_path() -> str:
     return _mafile_path
 
 
-def _get_client() -> SteamClient:
-    global _client
+def _session_from_mafile(path: str) -> requests.Session | None:
+    """
+    Создаёт requests.Session с куками из mafile (без логина).
+    Возвращает None если в mafile нет данных сессии.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        sess = data.get("Session", {})
+        login_secure = sess.get("steamLoginSecure")
+        session_id = sess.get("SessionID")
+        if not login_secure:
+            return None
+        s = requests.Session()
+        s.cookies.set("steamLoginSecure", login_secure, domain="steamcommunity.com")
+        if session_id:
+            s.cookies.set("sessionid", str(session_id), domain="steamcommunity.com")
+        s.headers.update({
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+        })
+        logger.info("Steam session loaded from mafile cookies")
+        return s
+    except Exception as e:
+        logger.warning("Failed to load session from mafile: %s", e)
+        return None
+
+
+def _get_session() -> requests.Session:
+    """
+    Возвращает аутентифицированную сессию.
+    Приоритет: куки из mafile → steampy login.
+    """
+    global _session, _client
     with _lock:
-        if _client is not None and _client.is_session_alive():
-            return _client
-        logger.info("Logging in Steam bot: %s", settings.steam_login)
-        client = SteamClient(settings.steam_api_key or "")
-        client.login(
-            username=settings.steam_login,
-            password=settings.steam_password,
-            steam_guard=_get_mafile_path(),
-        )
-        _client = client
-        logger.info("Steam bot session established")
-        return _client
+        # 1. Уже есть живая сессия — используем
+        if _session is not None:
+            return _session
+
+        # 2. Пробуем загрузить куки из mafile
+        mafile_path = settings.steam_mafile_path
+        if mafile_path and os.path.exists(mafile_path):
+            s = _session_from_mafile(mafile_path)
+            if s is not None:
+                _session = s
+                return _session
+
+        # 3. Fallback: полный логин через steampy
+        if _client is None or not _client.is_session_alive():
+            logger.info("Logging in Steam bot via username/password: %s", settings.steam_login)
+            client = SteamClient(settings.steam_api_key or "")
+            client.login(
+                username=settings.steam_login,
+                password=settings.steam_password,
+                steam_guard=_get_mafile_path(),
+            )
+            _client = client
+            logger.info("Steam bot session established via login")
+
+        _session = _client._session
+        return _session
 
 
 def fetch_user_inventory(steam_id: str) -> dict:
@@ -72,9 +126,9 @@ def fetch_user_inventory(steam_id: str) -> dict:
     """
     from fastapi import HTTPException
 
-    client = _get_client()
+    sess = _get_session()
     url = f"https://steamcommunity.com/inventory/{steam_id}/730/2"
-    resp = client._session.get(
+    resp = sess.get(
         url,
         params={"l": "english", "count": 5000},
         timeout=20,
