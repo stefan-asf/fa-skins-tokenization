@@ -159,13 +159,18 @@ def fetch_user_inventory(
     Запрашивает инвентарь CS2 пользователя.
     Возвращает dict с ключами assets и descriptions.
     """
+    from fastapi import HTTPException
+
     if trade_url:
         return _fetch_via_partner_inventory(steam_id, trade_url)
     if user_token:
         return _fetch_via_user_token(steam_id, user_token)
     if settings.steam_api_key:
         return _fetch_via_webapi(steam_id)
-    return _fetch_via_community(steam_id)
+    raise HTTPException(
+        status_code=400,
+        detail="Please provide your Steam Trade URL to view inventory",
+    )
 
 
 def _fetch_via_partner_inventory(steam_id: str, trade_url: str) -> dict:

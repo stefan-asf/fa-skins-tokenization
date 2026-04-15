@@ -313,6 +313,11 @@ async function refreshBalance() {
 
 async function loadInventory() {
   if (!state.user) return;
+  if (!state.user.steam_trade_url) {
+    state.inventory = [];
+    state.inventoryError = null;
+    return;
+  }
   try {
     const data = await api.getInventory();
     state.inventory = data.items;
