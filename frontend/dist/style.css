@@ -331,6 +331,48 @@ table a:hover { text-decoration: underline; }
   padding: 12px 0;
 }
 
+/* ── Trade URL setup ────────────────────────────────────────────────────────── */
+.trade-url-section {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.trade-url-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.trade-url-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 14px;
+}
+
+.trade-url-row {
+  display: flex;
+  gap: 10px;
+}
+
+.trade-url-input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.trade-url-input:focus {
+  border-color: var(--primary-color);
+}
+
 /* ── Left column layout ─────────────────────────────────────────────────────── */
 .left-col {
   display: flex;

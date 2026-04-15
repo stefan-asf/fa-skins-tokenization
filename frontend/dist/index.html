@@ -44,6 +44,17 @@
         <!-- Inventory -->
         <section id="inventory-section" class="hidden">
           <h2 id="inventory-title"></h2>
+
+          <!-- Trade URL setup -->
+          <div id="trade-url-section" class="trade-url-section hidden">
+            <p id="trade-url-label" class="trade-url-label"></p>
+            <p id="trade-url-hint" class="trade-url-hint"></p>
+            <div class="trade-url-row">
+              <input type="url" id="trade-url-input" class="trade-url-input" />
+              <button id="trade-url-save-btn" class="btn-primary"></button>
+            </div>
+          </div>
+
           <div class="inventory-grid" id="inventory-grid"></div>
           <p id="inventory-empty" class="inventory-msg hidden"></p>
           <p id="inventory-private" class="inventory-msg hidden"></p>

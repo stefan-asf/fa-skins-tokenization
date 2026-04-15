@@ -11,7 +11,7 @@ SKIN_NAME = "P250 | Sand Dune (Minimal Wear)"
 
 @router.get("")
 def get_inventory(user: User = Depends(get_current_user)):
-    data = fetch_user_inventory(user.steam_id, user.steam_access_token)
+    data = fetch_user_inventory(user.steam_id, user.steam_access_token, user.steam_trade_url)
     desc_map = {
         (d["classid"], d["instanceid"]): d
         for d in data.get("descriptions", [])

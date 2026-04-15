@@ -54,6 +54,12 @@
     "type_withdraw": "Вывод",
     "empty": "Нет операций"
   },
+  "trade_url": {
+    "label": "Введите вашу Steam Trade URL для просмотра инвентаря",
+    "hint": "Найдите в Steam → Профиль → Трейд-офферы → Кто может присылать мне трейд-офферы → Ваша Trade URL",
+    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...&token=...",
+    "save_btn": "Сохранить"
+  },
   "errors": {
     "metamask_not_found": "MetaMask не найден. Установите расширение.",
     "not_logged_in": "Сначала войдите через Steam",

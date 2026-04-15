@@ -54,6 +54,12 @@
     "type_withdraw": "Withdraw",
     "empty": "No operations yet"
   },
+  "trade_url": {
+    "label": "Enter your Steam Trade URL to view inventory",
+    "hint": "Find it in Steam → Profile → Trade Offers → Who can send me Trade Offers → Your Trade URL",
+    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...&token=...",
+    "save_btn": "Save"
+  },
   "errors": {
     "metamask_not_found": "MetaMask not found. Please install it.",
     "not_logged_in": "Please sign in with Steam first",

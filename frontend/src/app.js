@@ -4,7 +4,7 @@ import { connectMetaMask } from "./metamask.js";
 
 // ── State ────────────────────────────────────────────────────────────────────
 let state = {
-  user: null,       // { steam_id, wallet_address, created_at }
+  user: null,       // { steam_id, wallet_address, steam_trade_url, created_at }
   balance: 0,
   inventory: [],
   depositId: null,
@@ -75,6 +75,7 @@ function renderInventory() {
   const grid = $("inventory-grid");
   const emptyMsg = $("inventory-empty");
   const privateMsg = $("inventory-private");
+  const tradeUrlSection = $("trade-url-section");
 
   if (!state.user) {
     section.classList.add("hidden");
@@ -84,6 +85,20 @@ function renderInventory() {
   section.classList.remove("hidden");
   $("inventory-title").textContent = t("inventory.title");
 
+  // Trade URL setup prompt
+  if (!state.user.steam_trade_url) {
+    tradeUrlSection.classList.remove("hidden");
+    $("trade-url-label").textContent = t("trade_url.label");
+    $("trade-url-hint").textContent = t("trade_url.hint");
+    $("trade-url-input").placeholder = t("trade_url.placeholder");
+    $("trade-url-save-btn").textContent = t("trade_url.save_btn");
+    grid.innerHTML = "";
+    emptyMsg.classList.add("hidden");
+    privateMsg.classList.add("hidden");
+    return;
+  }
+
+  tradeUrlSection.classList.add("hidden");
   grid.innerHTML = "";
   emptyMsg.classList.add("hidden");
   privateMsg.classList.add("hidden");
@@ -115,6 +130,23 @@ function renderInventory() {
     `;
     grid.appendChild(card);
   });
+}
+
+async function saveTradeUrl() {
+  const input = $("trade-url-input");
+  const btn = $("trade-url-save-btn");
+  const url = input.value.trim();
+  if (!url) return;
+  btn.disabled = true;
+  try {
+    await api.saveTradeUrl(url);
+    state.user.steam_trade_url = url;
+    await loadInventory();
+    renderAll();
+  } catch (e) {
+    alert(e.message);
+    btn.disabled = false;
+  }
 }
 
 // ── Modal: Deposit ───────────────────────────────────────────────────────────
@@ -340,6 +372,8 @@ function bindEvents() {
   $("modal-overlay").addEventListener("click", closeModal);
   $("deposit-modal-close").addEventListener("click", closeModal);
   $("withdraw-modal-close").addEventListener("click", closeModal);
+
+  $("trade-url-save-btn").addEventListener("click", saveTradeUrl);
 
   document.addEventListener("click", (e) => {
     if (e.target.classList.contains("skin-deposit-btn")) {

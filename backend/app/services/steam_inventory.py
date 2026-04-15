@@ -1,15 +1,19 @@
 """
-Получение инвентаря пользователя через сессию бота.
+Получение инвентаря пользователя.
 
-Если задан STEAM_MAFILE_PATH и mafile содержит Session.steamLoginSecure —
-используем куки из mafile напрямую (без логина через username/password).
-Это надёжнее, чем логин с VPS-IP, который Steam часто блокирует.
+Приоритет методов:
+1. partnerinventory (бот-сессия + trade URL пользователя) — основной
+2. access_token пользователя — если сохранён
+3. Web API key — если задан в .env
+4. Community endpoint (fallback, VPS IP скорее всего заблокирован)
 """
 import json
 import logging
 import os
 import tempfile
 import threading
+from urllib.parse import urlparse, parse_qs
+
 import requests
 from steampy.client import SteamClient
 
@@ -22,13 +26,10 @@ _client: SteamClient | None = None
 _lock = threading.Lock()
 _mafile_path: str | None = None
 
+STEAM_ID_BASE = 76561197960265728
+
 
 def _get_mafile_path() -> str:
-    """
-    Возвращает путь к mafile.
-    Если задан STEAM_MAFILE_PATH — использует его напрямую.
-    Иначе создаёт временный mafile из env-переменных.
-    """
     global _mafile_path
 
     if settings.steam_mafile_path and os.path.exists(settings.steam_mafile_path):
@@ -53,19 +54,14 @@ def _get_mafile_path() -> str:
 
 
 def _session_from_mafile(path: str) -> requests.Session | None:
-    """
-    Создаёт requests.Session с куками из mafile (без логина).
-    Возвращает None если в mafile нет данных сессии.
-    """
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        sess = data.get("Session", {})
-        login_secure = sess.get("steamLoginSecure")
-        session_id = sess.get("SessionID")
+        sess_data = data.get("Session", {})
+        login_secure = sess_data.get("steamLoginSecure")
+        session_id = sess_data.get("SessionID")
         if not login_secure:
             return None
-        # Передаём куки напрямую в заголовке — обходим проблемы domain matching в requests
         cookie_str = f"steamLoginSecure={login_secure}"
         if session_id:
             cookie_str += f"; sessionid={session_id}"
@@ -89,17 +85,11 @@ def _session_from_mafile(path: str) -> requests.Session | None:
 
 
 def _get_session() -> requests.Session:
-    """
-    Возвращает аутентифицированную сессию.
-    Приоритет: куки из mafile → steampy login.
-    """
     global _session, _client
     with _lock:
-        # 1. Уже есть живая сессия — используем
         if _session is not None:
             return _session
 
-        # 2. Пробуем загрузить куки из mafile
         mafile_path = settings.steam_mafile_path
         if mafile_path and os.path.exists(mafile_path):
             s = _session_from_mafile(mafile_path)
@@ -107,7 +97,6 @@ def _get_session() -> requests.Session:
                 _session = s
                 return _session
 
-        # 3. Fallback: полный логин через steampy
         if _client is None or not _client.is_session_alive():
             logger.info("Logging in Steam bot via username/password: %s", settings.steam_login)
             client = SteamClient(settings.steam_api_key or "")
@@ -123,12 +112,55 @@ def _get_session() -> requests.Session:
         return _session
 
 
-def fetch_user_inventory(steam_id: str, user_token: str | None = None) -> dict:
+def _get_bot_session_id() -> str | None:
+    """Extract sessionid from bot's requests.Session."""
+    sess = _get_session()
+    # Try cookie jar
+    for cookie in sess.cookies:
+        if cookie.name == "sessionid":
+            return cookie.value
+    # Try Cookie header (set directly in _session_from_mafile)
+    cookie_header = sess.headers.get("Cookie", "")
+    for part in cookie_header.split(";"):
+        part = part.strip()
+        if part.startswith("sessionid="):
+            return part[len("sessionid="):]
+    return None
+
+
+def _normalize_partner_inventory(data: dict) -> dict:
+    """Convert partnerinventory response to standard assets/descriptions format."""
+    assets = []
+    for asset_id, asset in data.get("rgInventory", {}).items():
+        assets.append({
+            "assetid": asset.get("id", asset_id),
+            "classid": asset.get("classid", ""),
+            "instanceid": asset.get("instanceid", "0"),
+            "amount": asset.get("amount", "1"),
+            "appid": 730,
+            "contextid": "2",
+        })
+
+    descriptions = list(data.get("rgDescriptions", {}).values())
+
+    return {
+        "assets": assets,
+        "descriptions": descriptions,
+        "success": 1,
+    }
+
+
+def fetch_user_inventory(
+    steam_id: str,
+    user_token: str | None = None,
+    trade_url: str | None = None,
+) -> dict:
     """
     Запрашивает инвентарь CS2 пользователя.
-    Приоритет: токен пользователя → developer API key → community endpoint (бот).
     Возвращает dict с ключами assets и descriptions.
     """
+    if trade_url:
+        return _fetch_via_partner_inventory(steam_id, trade_url)
     if user_token:
         return _fetch_via_user_token(steam_id, user_token)
     if settings.steam_api_key:
@@ -136,8 +168,80 @@ def fetch_user_inventory(steam_id: str, user_token: str | None = None) -> dict:
     return _fetch_via_community(steam_id)
 
 
+def _fetch_via_partner_inventory(steam_id: str, trade_url: str) -> dict:
+    """
+    Использует Steam trade window AJAX endpoint через бот-сессию.
+    URL: steamcommunity.com/tradeoffer/new/partnerinventory/
+    Бот должен иметь валидную сессию (steamLoginSecure + sessionid).
+    """
+    from fastapi import HTTPException
+
+    # Parse trade URL
+    parsed = urlparse(trade_url)
+    params = parse_qs(parsed.query)
+    partner = params.get("partner", [None])[0]
+    token = params.get("token", [None])[0]
+
+    if not partner:
+        raise HTTPException(status_code=400, detail="Invalid trade URL: missing partner")
+
+    # Verify partner matches logged-in user
+    try:
+        account_id = int(steam_id) - STEAM_ID_BASE
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid steam_id")
+
+    if str(account_id) != partner:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Trade URL partner ({partner}) does not match your account ({account_id})",
+        )
+
+    session_id = _get_bot_session_id()
+    if not session_id:
+        logger.warning("Bot session has no sessionid — falling back to community endpoint")
+        return _fetch_via_community(steam_id)
+
+    sess = _get_session()
+    referer = f"https://steamcommunity.com/tradeoffer/new/?partner={partner}"
+    if token:
+        referer += f"&token={token}"
+
+    proxies = {"https": settings.steam_proxy, "http": settings.steam_proxy} if settings.steam_proxy else None
+
+    resp = sess.get(
+        "https://steamcommunity.com/tradeoffer/new/partnerinventory/",
+        params={
+            "sessionid": session_id,
+            "partner": partner,
+            "appid": 730,
+            "contextid": 2,
+            "l": "english",
+        },
+        headers={
+            "Referer": referer,
+            "X-Prototype-Version": "1.7",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+        proxies=proxies,
+        timeout=20,
+    )
+
+    logger.info("partnerinventory: status=%s body=%s", resp.status_code, resp.text[:300])
+
+    if resp.status_code == 403:
+        raise HTTPException(status_code=403, detail="Steam inventory is private")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Steam returned {resp.status_code}")
+
+    data = resp.json()
+    if not data or not data.get("success"):
+        raise HTTPException(status_code=403, detail="Steam inventory is private or empty")
+
+    return _normalize_partner_inventory(data)
+
+
 def _fetch_via_user_token(steam_id: str, access_token: str) -> dict:
-    """Использует собственный токен пользователя — не имеет IP-ограничений."""
     from fastapi import HTTPException
 
     resp = requests.get(
@@ -166,7 +270,6 @@ def _fetch_via_user_token(steam_id: str, access_token: str) -> dict:
 
 
 def _fetch_via_webapi(steam_id: str) -> dict:
-    """Steam Web API — работает с серверных IP без ограничений."""
     from fastapi import HTTPException
 
     resp = requests.get(
@@ -194,14 +297,15 @@ def _fetch_via_webapi(steam_id: str) -> dict:
 
 
 def _fetch_via_community(steam_id: str) -> dict:
-    """Fallback: community endpoint через аутентифицированную сессию бота."""
     from fastapi import HTTPException
 
     sess = _get_session()
     url = f"https://steamcommunity.com/inventory/{steam_id}/730/2"
+    proxies = {"https": settings.steam_proxy, "http": settings.steam_proxy} if settings.steam_proxy else None
     resp = sess.get(
         url,
         params={"l": "english", "count": 5000},
+        proxies=proxies,
         timeout=20,
     )
     logger.warning("Community inventory: status=%s body=%s", resp.status_code, resp.text[:300])

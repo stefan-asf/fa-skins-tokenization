@@ -24,6 +24,10 @@ class SteamTokenUpdate(BaseModel):
     access_token: str
 
 
+class TradeUrlUpdate(BaseModel):
+    trade_url: str
+
+
 @router.get("/steam")
 def steam_login():
     url = get_login_redirect_url(_CALLBACK_URL, settings.base_url)
@@ -62,6 +66,7 @@ def get_me(user: User = Depends(get_current_user)):
     return {
         "steam_id": user.steam_id,
         "wallet_address": user.wallet_address,
+        "steam_trade_url": user.steam_trade_url,
         "created_at": user.created_at,
     }
 
@@ -95,6 +100,20 @@ def save_steam_token(
     db: Session = Depends(get_db),
 ):
     user.steam_access_token = body.access_token
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/trade-url")
+def save_trade_url(
+    body: TradeUrlUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    url = body.trade_url.strip()
+    if "steamcommunity.com/tradeoffer/new/" not in url or "partner=" not in url:
+        raise HTTPException(status_code=400, detail="Invalid Steam trade URL")
+    user.steam_trade_url = url
     db.commit()
     return {"ok": True}
 
