@@ -151,7 +151,7 @@ def _fetch_via_webapi(steam_id: str) -> dict:
         },
         timeout=20,
     )
-    logger.info("Steam Web API inventory: status=%s", resp.status_code)
+    logger.warning("Steam Web API inventory: status=%s body=%s", resp.status_code, resp.text[:300])
     if resp.status_code == 403:
         raise HTTPException(status_code=403, detail="Steam inventory is private")
     if resp.status_code != 200:
