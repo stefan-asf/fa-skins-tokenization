@@ -41,7 +41,7 @@ const server = http.createServer((req, res) => {
 
     console.log("[webhook] Received push, deploying...");
     try {
-      execSync(`cd ${REPO} && git pull --ff-only`, { stdio: "inherit" });
+      execSync(`cd ${REPO} && git checkout -- . && git pull --ff-only`, { stdio: "inherit" });
       execSync(`bash ${REPO}/deploy.sh`, { stdio: "inherit" });
       console.log("[webhook] Deploy done");
     } catch (err) {
