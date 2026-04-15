@@ -20,6 +20,10 @@ class WalletUpdate(BaseModel):
     wallet_address: str
 
 
+class SteamTokenUpdate(BaseModel):
+    access_token: str
+
+
 @router.get("/steam")
 def steam_login():
     url = get_login_redirect_url(_CALLBACK_URL, settings.base_url)
@@ -82,6 +86,17 @@ def get_token_balance(user: User = Depends(get_current_user)):
         return {"balance": 0, "wallet_address": None}
     raw = get_balance(user.wallet_address)
     return {"balance": raw // 10**18, "wallet_address": user.wallet_address}
+
+
+@router.post("/steam-token")
+def save_steam_token(
+    body: SteamTokenUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user.steam_access_token = body.access_token
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/logout")
