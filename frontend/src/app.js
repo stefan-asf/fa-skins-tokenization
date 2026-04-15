@@ -389,23 +389,6 @@ function bindEvents() {
   });
 }
 
-// ── Steam token capture ───────────────────────────────────────────────────────
-async function captureSteamToken() {
-  if (!state.user) return;
-  try {
-    const resp = await fetch("https://steamcommunity.com/chat/clientjstoken", {
-      credentials: "include",
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (data.logged_in && data.token) {
-      await api.saveSteamToken(data.token).catch(() => {});
-    }
-  } catch {
-    // Пользователь не залогинен в Steam или CORS — не критично
-  }
-}
-
 // ── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   await initI18n();
@@ -414,7 +397,6 @@ async function init() {
 
   try {
     state.user = await api.getMe();
-    await captureSteamToken();
     await Promise.all([refreshBalance(), loadInventory()]);
   } catch {
     state.user = null;

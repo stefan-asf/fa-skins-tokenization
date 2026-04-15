@@ -19,6 +19,18 @@ export const api = {
     }),
   getBalance: () => req("/auth/balance"),
   getInventory: () => req("/inventory"),
+  saveSteamToken: (access_token) =>
+    req("/auth/steam-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token }),
+    }),
+  saveTradeUrl: (trade_url) =>
+    req("/auth/trade-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trade_url }),
+    }),
   createDeposit: (asset_id) =>
     req("/deposit", {
       method: "POST",
