@@ -125,9 +125,46 @@ def _get_session() -> requests.Session:
 
 def fetch_user_inventory(steam_id: str) -> dict:
     """
-    Запрашивает инвентарь CS2 пользователя через сессию бота.
+    Запрашивает инвентарь CS2 пользователя.
+    Использует официальный Steam Web API если задан STEAM_API_KEY,
+    иначе fallback на community endpoint через сессию бота.
     Возвращает dict с ключами assets и descriptions.
     """
+    if settings.steam_api_key:
+        return _fetch_via_webapi(steam_id)
+    return _fetch_via_community(steam_id)
+
+
+def _fetch_via_webapi(steam_id: str) -> dict:
+    """Steam Web API — работает с серверных IP без ограничений."""
+    from fastapi import HTTPException
+
+    resp = requests.get(
+        "https://api.steampowered.com/IEconService/GetInventoryItemsWithDescriptions/v1/",
+        params={
+            "key": settings.steam_api_key,
+            "steamid": steam_id,
+            "appid": 730,
+            "contextid": 2,
+            "count": 5000,
+            "get_descriptions": 1,
+        },
+        timeout=20,
+    )
+    logger.info("Steam Web API inventory: status=%s", resp.status_code)
+    if resp.status_code == 403:
+        raise HTTPException(status_code=403, detail="Steam inventory is private")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Steam API returned {resp.status_code}")
+
+    data = resp.json().get("response", {})
+    if not data:
+        raise HTTPException(status_code=403, detail="Steam inventory is private or empty")
+    return data
+
+
+def _fetch_via_community(steam_id: str) -> dict:
+    """Fallback: community endpoint через аутентифицированную сессию бота."""
     from fastapi import HTTPException
 
     sess = _get_session()
@@ -137,9 +174,7 @@ def fetch_user_inventory(steam_id: str) -> dict:
         params={"l": "english", "count": 5000},
         timeout=20,
     )
-
-    logger.warning("Steam inventory request: url=%s", url)
-    logger.warning("Steam inventory response: status=%s body=%s", resp.status_code, resp.text[:500])
+    logger.warning("Community inventory: status=%s body=%s", resp.status_code, resp.text[:300])
     if resp.status_code == 403:
         raise HTTPException(status_code=403, detail="Steam inventory is private")
     if resp.status_code != 200:
