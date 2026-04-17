@@ -148,21 +148,23 @@ def request_items_from_user(
     resp.raise_for_status()
     data = resp.json()
 
-    # Build lookup: asset_id → {appid, contextid, assetid, amount}
+    from steampy.models import Asset
+
+    # Build lookup: asset_id → raw asset dict
     asset_map: dict[str, dict] = {}
     for asset in data.get("assets", []):
-        asset_map[str(asset["assetid"])] = {
-            "appid": int(asset["appid"]),
-            "contextid": str(asset["contextid"]),
-            "assetid": str(asset["assetid"]),
-            "amount": int(asset.get("amount", 1)),
-        }
+        asset_map[str(asset["assetid"])] = asset
 
     items_to_receive = []
     for aid in asset_ids:
         if aid not in asset_map:
             raise ValueError(f"Asset {aid} not found in user inventory")
-        items_to_receive.append(asset_map[aid])
+        raw = asset_map[aid]
+        items_to_receive.append(Asset(
+            asset_id=str(raw["assetid"]),
+            game=GAME,
+            amount=int(raw.get("amount", 1)),
+        ))
 
     offer = client.make_offer_with_url(
         items_from_me=[],
