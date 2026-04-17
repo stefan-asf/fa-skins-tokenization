@@ -1,0 +1,12 @@
+{
+  "name": "faskins-inventory",
+  "version": "1.0.0",
+  "description": "Steam inventory microservice using steam-inventory-api-ng",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "steam-inventory-api-ng": "latest"
+  }
+}

@@ -37,8 +37,22 @@ cp "$SRC/api.js"       "$DIST/api.js"
 cp "$SRC/metamask.js"  "$DIST/metamask.js"
 cp "$SRC/i18n/index.js" "$DIST/i18n/index.js"
 
+# --- Node inventory microservice ---
+echo "[deploy] Installing Node inventory dependencies..."
+cd "$REPO/infra/node-inventory"
+npm install --production --silent
+
+# Register and enable service on first deploy
+if ! systemctl is-enabled faskins-inventory &>/dev/null; then
+  echo "[deploy] Registering faskins-inventory service..."
+  sudo cp "$REPO/infra/systemd/faskins-inventory.service" /etc/systemd/system/
+  sudo systemctl daemon-reload
+  sudo systemctl enable faskins-inventory
+fi
+
 # --- Restart services ---
 echo "[deploy] Restarting services..."
+sudo systemctl restart faskins-inventory
 sudo systemctl restart faskins-api
 sudo systemctl restart faskins-celery
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=FA Skins — Node Inventory Microservice
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/fa-skins-tokenization/infra/node-inventory
+EnvironmentFile=/var/www/fa-skins-tokenization/.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
