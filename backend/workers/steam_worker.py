@@ -115,6 +115,8 @@ def poll_deposit_trade_status(self, trade_offer_id: str, deposit_ids: list):
     При принятии — переводит в 'accepted' и запускает минт для каждого депозита.
     При терминальном состоянии — переводит в 'failed'.
     """
+    from celery.exceptions import Retry, MaxRetriesExceededError
+
     db = SessionLocal()
     try:
         state = get_trade_offer_state(trade_offer_id)
@@ -143,21 +145,24 @@ def poll_deposit_trade_status(self, trade_offer_id: str, deposit_ids: list):
             logger.warning("Trade offer %s terminal state %d, deposits failed", trade_offer_id, state)
 
         else:
-            # Still active or needs confirmation — retry in 10s
-            raise self.retry(countdown=10)
+            # Still active — retry in 10s
+            try:
+                raise self.retry(countdown=10)
+            except MaxRetriesExceededError:
+                deposits = db.query(Deposit).filter(Deposit.id.in_(deposit_ids)).all()
+                for d in deposits:
+                    d.status = "failed"
+                    _log(db, "deposit", d.id, "trade_timeout", trade_offer_id)
+                db.commit()
 
-    except self.MaxRetriesExceededError:
-        db2 = SessionLocal()
-        try:
-            for d in db2.query(Deposit).filter(Deposit.id.in_(deposit_ids)).all():
-                d.status = "failed"
-                _log(db2, "deposit", d.id, "trade_timeout", trade_offer_id)
-            db2.commit()
-        finally:
-            db2.close()
+    except Retry:
+        raise  # let Celery handle normal retry scheduling
     except Exception as exc:
-        logger.error("poll_deposit_trade_status error: %s", exc)
-        raise self.retry(exc=exc, countdown=10)
+        logger.error("poll_deposit_trade_status unexpected error: %s", exc)
+        try:
+            raise self.retry(exc=exc, countdown=10)
+        except MaxRetriesExceededError:
+            pass
     finally:
         db.close()
 
