@@ -13,9 +13,21 @@ _STATE_ACCEPTED = 3
 _STATE_TERMINAL = {4, 5, 6, 7, 8, 10}  # Countered/Expired/Canceled/Declined/InvalidItems/NoLongerValid
 
 
+def _get_mafile_path() -> str:
+    """Возвращает путь к .mafile или строку JSON из env."""
+    import os, glob as _glob
+    if settings.steam_mafile_path:
+        return settings.steam_mafile_path
+    # Fallback: first *.maFile in backend dir
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    matches = _glob.glob(os.path.join(root, "**", "*.maFile"), recursive=True)
+    if matches:
+        return matches[0]
+    raise FileNotFoundError("No .maFile found. Set STEAM_MAFILE_PATH in .env")
+
+
 def get_client() -> SteamClient:
     """Создаёт и возвращает авторизованный SteamClient."""
-    from app.services.steam_inventory import _get_mafile_path
     client = SteamClient(settings.steam_api_key or "")
     client.login(
         username=settings.steam_login,
