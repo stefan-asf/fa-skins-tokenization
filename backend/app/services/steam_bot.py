@@ -42,20 +42,18 @@ def get_client() -> SteamClient:
     with open(_get_mafile_path()) as f:
         client.steam_guard = _json.load(f)
 
-    # Prefer env vars (manually updated with fresh browser session),
-    # fall back to mafile Session field
     mafile_session = client.steam_guard.get("Session", {})
-    login_secure = (
-        settings.steam_login_secure
-        or mafile_session.get("steamLoginSecure")
-    )
-    session_id = (
-        settings.steam_session_id
-        or mafile_session.get("SessionID")
-    )
 
-    if login_secure and session_id:
-        # Reuse existing session cookies — bypasses IP-blocked login flow
+    # Build steamLoginSecure from mafile: "steamid||AccessToken" (URL-encoded)
+    bot_steam_id = (
+        client.steam_guard.get("steamid")
+        or mafile_session.get("SteamID")
+    )
+    access_token = mafile_session.get("AccessToken")
+    session_id = mafile_session.get("SessionID") or settings.steam_session_id
+
+    if bot_steam_id and access_token and session_id:
+        login_secure = _up.quote(f"{bot_steam_id}||{access_token}", safe="")
         for domain in ("steamcommunity.com", "store.steampowered.com", "help.steampowered.com"):
             client._session.cookies.set(
                 "steamLoginSecure", login_secure, domain=domain, path="/"
@@ -64,8 +62,7 @@ def get_client() -> SteamClient:
                 "sessionid", session_id, domain=domain, path="/"
             )
         client.was_login_executed = True
-        steam_id_str = _up.unquote(login_secure).split("||")[0]
-        logger.info("Steam bot session reused (steam_id=%s)", steam_id_str)
+        logger.info("Steam bot session built from mafile (steam_id=%s)", bot_steam_id)
     else:
         client.login(
             username=settings.steam_login,
