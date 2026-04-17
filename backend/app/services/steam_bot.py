@@ -26,6 +26,59 @@ def _get_mafile_path() -> str:
     raise FileNotFoundError("No .maFile found. Set STEAM_MAFILE_PATH in .env")
 
 
+def _get_fresh_access_token(mafile_session: dict, steam_id: str) -> str | None:
+    """
+    Возвращает валидный AccessToken. Если текущий истёк — обновляет через RefreshToken.
+    """
+    import base64 as _b64, datetime as _dt, json as _json
+
+    def _is_expired(token: str) -> bool:
+        try:
+            payload = token.split(".")[1]
+            payload += "=" * (4 - len(payload) % 4)
+            data = _json.loads(_b64.b64decode(payload))
+            return _dt.datetime.fromtimestamp(data["exp"]) < _dt.datetime.now()
+        except Exception:
+            return True
+
+    access_token = mafile_session.get("AccessToken", "")
+    if access_token and not _is_expired(access_token):
+        return access_token
+
+    refresh_token = mafile_session.get("RefreshToken", "")
+    if not refresh_token:
+        logger.error("No RefreshToken in mafile — cannot refresh access token")
+        return None
+
+    logger.info("AccessToken expired, refreshing via RefreshToken...")
+    try:
+        resp = requests.post(
+            "https://api.steampowered.com/IAuthenticationService/GenerateAccessTokenForApp/v1",
+            data={"refresh_token": refresh_token, "steamid": steam_id},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        new_token = resp.json().get("response", {}).get("access_token")
+        if not new_token:
+            logger.error("GenerateAccessTokenForApp returned no token: %s", resp.text[:200])
+            return None
+        logger.info("AccessToken refreshed successfully")
+        # Persist to mafile so next restart doesn't need to refresh again
+        try:
+            mafile_path = _get_mafile_path()
+            with open(mafile_path) as f:
+                mafile_data = _json.load(f)
+            mafile_data.setdefault("Session", {})["AccessToken"] = new_token
+            with open(mafile_path, "w") as f:
+                _json.dump(mafile_data, f, indent=2)
+        except Exception as e:
+            logger.warning("Could not persist new AccessToken to mafile: %s", e)
+        return new_token
+    except Exception as e:
+        logger.error("Failed to refresh AccessToken: %s", e)
+        return None
+
+
 def get_client() -> SteamClient:
     """
     Создаёт авторизованный SteamClient.
@@ -44,12 +97,11 @@ def get_client() -> SteamClient:
 
     mafile_session = client.steam_guard.get("Session", {})
 
-    # Build steamLoginSecure from mafile: "steamid||AccessToken" (URL-encoded)
     bot_steam_id = (
         client.steam_guard.get("steamid")
         or mafile_session.get("SteamID")
     )
-    access_token = mafile_session.get("AccessToken")
+    access_token = _get_fresh_access_token(mafile_session, bot_steam_id)
     session_id = mafile_session.get("SessionID") or settings.steam_session_id
 
     if bot_steam_id and access_token and session_id:
