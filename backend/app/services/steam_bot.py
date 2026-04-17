@@ -42,15 +42,16 @@ def get_client() -> SteamClient:
     with open(_get_mafile_path()) as f:
         client.steam_guard = _json.load(f)
 
-    # Prefer session data from mafile (most up-to-date), fall back to env vars
+    # Prefer env vars (manually updated with fresh browser session),
+    # fall back to mafile Session field
     mafile_session = client.steam_guard.get("Session", {})
     login_secure = (
-        mafile_session.get("steamLoginSecure")
-        or settings.steam_login_secure
+        settings.steam_login_secure
+        or mafile_session.get("steamLoginSecure")
     )
     session_id = (
-        mafile_session.get("SessionID")
-        or settings.steam_session_id
+        settings.steam_session_id
+        or mafile_session.get("SessionID")
     )
 
     if login_secure and session_id:
