@@ -27,14 +27,42 @@ def _get_mafile_path() -> str:
 
 
 def get_client() -> SteamClient:
-    """Создаёт и возвращает авторизованный SteamClient."""
+    """
+    Создаёт авторизованный SteamClient.
+
+    Если в .env задан STEAM_LOGIN_SECURE — использует существующий JWT-токен
+    напрямую как cookie, минуя полный логин (который Steam блокирует с серверных IP).
+    Иначе — полный логин через логин/пароль.
+    """
+    import json as _json, urllib.parse as _up, secrets as _secrets
+
     client = SteamClient(settings.steam_api_key or "")
-    client.login(
-        username=settings.steam_login,
-        password=settings.steam_password,
-        steam_guard=_get_mafile_path(),
-    )
-    logger.info("Steam bot logged in as %s", settings.steam_login)
+
+    # Load mafile for steam_guard (needed for trade confirmation via 2FA)
+    with open(_get_mafile_path()) as f:
+        client.steam_guard = _json.load(f)
+
+    if settings.steam_login_secure:
+        # Reuse existing JWT session cookie — bypasses IP-blocked login flow
+        session_id = _secrets.token_hex(12)
+        for domain in ("steamcommunity.com", "store.steampowered.com", "help.steampowered.com"):
+            client._session.cookies.set(
+                "steamLoginSecure", settings.steam_login_secure, domain=domain, path="/"
+            )
+            client._session.cookies.set(
+                "sessionid", session_id, domain=domain, path="/"
+            )
+        client.was_login_executed = True
+        steam_id_str = _up.unquote(settings.steam_login_secure).split("||")[0]
+        logger.info("Steam bot session reused (steam_id=%s)", steam_id_str)
+    else:
+        client.login(
+            username=settings.steam_login,
+            password=settings.steam_password,
+            steam_guard=_get_mafile_path(),
+        )
+        logger.info("Steam bot logged in as %s", settings.steam_login)
+
     return client
 
 
