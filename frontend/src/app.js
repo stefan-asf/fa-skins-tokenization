@@ -2,16 +2,19 @@ import { initI18n, t, setLocale, getLocale, SUPPORTED_LOCALES } from "./i18n/ind
 import { api } from "./api.js";
 import { connectMetaMask } from "./metamask.js";
 
+// ── Constants ────────────────────────────────────────────────────────────────
+const MAX_SELECTION = 50;
+
 // ── State ────────────────────────────────────────────────────────────────────
 let state = {
-  user: null,       // { steam_id, wallet_address, steam_trade_url, created_at }
+  user: null,           // { steam_id, wallet_address, steam_trade_url }
   balance: 0,
-  inventory: [],
-  depositId: null,
-  withdrawalId: null,
-  activeModal: null, // "deposit" | "withdraw" | null
-  selectedAsset: null,
+  inventory: [],        // [{asset_id, name, icon_url, tradable}]
+  inventoryError: null,
+  selectedAssets: [],   // [{asset_id, name, icon_url}]
+  depositIds: [],       // [1, 2, ...] — IDs being polled
   pollingTimer: null,
+  depositInProgress: false,
 };
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
@@ -22,6 +25,7 @@ function renderAll() {
   renderNav();
   renderHero();
   renderInventory();
+  renderTradePanel();
 }
 
 function renderNav() {
@@ -60,13 +64,9 @@ function renderNav() {
 function renderHero() {
   $("hero-title").textContent = t("hero.title");
   $("hero-subtitle").textContent = t("hero.subtitle");
-  $("hero-deposit-btn").textContent = t("hero.deposit_btn");
   $("hero-withdraw-btn").textContent = t("hero.withdraw_btn");
 
-  const canDeposit = state.user && state.user.wallet_address;
   const canWithdraw = state.user && state.user.wallet_address && state.balance > 0;
-
-  $("hero-deposit-btn").disabled = !canDeposit;
   $("hero-withdraw-btn").disabled = !canWithdraw;
 }
 
@@ -85,7 +85,6 @@ function renderInventory() {
   section.classList.remove("hidden");
   $("inventory-title").textContent = t("inventory.title");
 
-  // Trade URL setup prompt
   if (!state.user.steam_trade_url) {
     tradeUrlSection.classList.remove("hidden");
     $("trade-url-label").textContent = t("trade_url.label");
@@ -115,104 +114,181 @@ function renderInventory() {
     return;
   }
 
+  const selectedIds = new Set(state.selectedAssets.map((a) => a.asset_id));
+
   state.inventory.forEach((item) => {
     const card = document.createElement("div");
-    card.className = "skin-card";
+    const isSelected = selectedIds.has(item.asset_id);
+    card.className =
+      "skin-card" +
+      (isSelected ? " selected" : "") +
+      (!item.tradable ? " not-tradable" : "");
+    card.dataset.asset = item.asset_id;
     card.innerHTML = `
-      <img src="${item.icon_url}" alt="${item.name}" />
+      <img src="${item.icon_url}" alt="${item.name}" loading="lazy" />
       <div class="skin-card-name">${item.name}</div>
       <div class="skin-card-tag ${item.tradable ? "tradable" : "not-tradable"}">
         ${item.tradable ? t("inventory.tradable") : t("inventory.not_tradable")}
       </div>
-      <button class="btn-primary skin-deposit-btn" data-asset="${item.asset_id}" ${!item.tradable ? "disabled" : ""}>
-        ${t("inventory.deposit_btn")}
-      </button>
     `;
     grid.appendChild(card);
   });
 }
 
-async function saveTradeUrl() {
-  const input = $("trade-url-input");
-  const btn = $("trade-url-save-btn");
-  const url = input.value.trim();
-  if (!url) return;
-  btn.disabled = true;
-  try {
-    await api.saveTradeUrl(url);
-    state.user.steam_trade_url = url;
-    await loadInventory();
-    renderAll();
-  } catch (e) {
-    alert(e.message);
-    btn.disabled = false;
+function renderTradePanel() {
+  $("trade-panel-title").textContent = t("trade_panel.title");
+
+  const items = state.selectedAssets;
+  const itemsContainer = $("trade-items");
+  const depositBtn = $("trade-deposit-btn");
+  const countEl = $("trade-count");
+
+  depositBtn.textContent = t("trade_panel.deposit_btn");
+
+  // Rebuild items list
+  itemsContainer.innerHTML = "";
+
+  if (items.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "trade-empty";
+    empty.textContent = t("trade_panel.empty");
+    itemsContainer.appendChild(empty);
+    countEl.textContent = "";
+    depositBtn.disabled = true;
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "trade-item";
+    row.innerHTML = `
+      <img src="${item.icon_url}" alt="${item.name}" />
+      <div class="trade-item-name">${item.name}</div>
+      <button class="trade-item-remove" data-asset="${item.asset_id}" title="Remove">✕</button>
+    `;
+    itemsContainer.appendChild(row);
+  });
+
+  // Count label
+  const countText =
+    items.length === 1
+      ? t("trade_panel.count_one")
+      : t("trade_panel.count_many").replace("{n}", items.length);
+  countEl.textContent = countText;
+
+  // Max warning
+  const existingWarn = $("trade-footer").querySelector(".trade-max-warning");
+  if (existingWarn) existingWarn.remove();
+  if (items.length >= MAX_SELECTION) {
+    const warn = document.createElement("div");
+    warn.className = "trade-max-warning";
+    warn.textContent = t("trade_panel.max_warning");
+    $("trade-footer").insertBefore(warn, depositBtn);
+  }
+
+  // Deposit button state
+  const canDeposit =
+    state.user &&
+    state.user.wallet_address &&
+    !state.depositInProgress;
+  depositBtn.disabled = !canDeposit;
+
+  if (!state.user?.wallet_address) {
+    countEl.textContent = t("trade_panel.no_wallet");
   }
 }
 
-// ── Modal: Deposit ───────────────────────────────────────────────────────────
-function openDepositModal(assetId) {
-  state.selectedAsset = assetId;
-  const m = $("deposit-modal");
-  $("deposit-modal-title").textContent = t("deposit_modal.title");
-  $("deposit-step1").textContent = t("deposit_modal.step1");
-  $("deposit-step2").textContent = t("deposit_modal.step2");
-  $("deposit-confirm-btn").textContent = t("deposit_modal.confirm_btn");
-  $("deposit-status").textContent = "";
-  $("deposit-status").className = "status-bar";
-  $("deposit-confirm-btn").disabled = false;
-  m.classList.remove("hidden");
-  $("modal-overlay").classList.remove("hidden");
+// ── Selection ────────────────────────────────────────────────────────────────
+function toggleAsset(item) {
+  if (!item.tradable) return;
+
+  const idx = state.selectedAssets.findIndex((a) => a.asset_id === item.asset_id);
+  if (idx >= 0) {
+    state.selectedAssets.splice(idx, 1);
+  } else {
+    if (state.selectedAssets.length >= MAX_SELECTION) return;
+    state.selectedAssets.push({
+      asset_id: item.asset_id,
+      name: item.name,
+      icon_url: item.icon_url,
+    });
+  }
+
+  renderInventory();
+  renderTradePanel();
 }
 
-function closeModal() {
-  $("deposit-modal").classList.add("hidden");
-  $("withdraw-modal").classList.add("hidden");
-  $("modal-overlay").classList.add("hidden");
-  if (state.pollingTimer) clearInterval(state.pollingTimer);
+function removeAsset(assetId) {
+  state.selectedAssets = state.selectedAssets.filter((a) => a.asset_id !== assetId);
+  renderInventory();
+  renderTradePanel();
 }
 
+// ── Deposit ──────────────────────────────────────────────────────────────────
 async function submitDeposit() {
-  const btn = $("deposit-confirm-btn");
-  btn.disabled = true;
-  setDepositStatus(t("deposit_modal.status_waiting"), "pending");
+  if (state.selectedAssets.length === 0 || state.depositInProgress) return;
+
+  state.depositInProgress = true;
+  $("trade-deposit-btn").disabled = true;
+  setTradeStatus(t("trade_panel.status_pending"), "pending");
 
   try {
-    const dep = await api.createDeposit(state.selectedAsset);
-    state.depositId = dep.id;
-    pollDepositStatus(dep.id);
+    const assets = state.selectedAssets.map((a) => ({
+      asset_id: a.asset_id,
+      skin_name: a.name,
+    }));
+    const result = await api.createDeposit(assets);
+    state.depositIds = result.deposit_ids;
+    setTradeStatus(t("trade_panel.status_sent"), "pending");
+    pollDepositBatch(result.deposit_ids);
   } catch (e) {
-    setDepositStatus(e.message, "failed");
-    btn.disabled = false;
+    setTradeStatus(e.message, "failed");
+    state.depositInProgress = false;
+    $("trade-deposit-btn").disabled = false;
   }
 }
 
-function setDepositStatus(text, cls) {
-  const el = $("deposit-status");
+function setTradeStatus(text, cls) {
+  const el = $("trade-status");
   el.textContent = text;
   el.className = "status-bar status-" + cls;
 }
 
-function pollDepositStatus(id) {
+function pollDepositBatch(depositIds) {
   if (state.pollingTimer) clearInterval(state.pollingTimer);
+
   state.pollingTimer = setInterval(async () => {
     try {
-      const dep = await api.getDeposit(id);
-      if (dep.status === "minted") {
-        setDepositStatus(t("deposit_modal.status_minted"), "success");
+      const statuses = await Promise.all(depositIds.map((id) => api.getDeposit(id)));
+
+      const allMinted = statuses.every((d) => d.status === "minted");
+      const anyFailed = statuses.some((d) => d.status === "failed");
+      const anyAccepted = statuses.some((d) =>
+        ["accepted", "minted"].includes(d.status)
+      );
+
+      if (allMinted) {
+        setTradeStatus(t("trade_panel.status_minted"), "success");
         clearInterval(state.pollingTimer);
+        state.depositInProgress = false;
+        state.selectedAssets = [];
+        state.depositIds = [];
         await refreshBalance();
-        renderHero();
-      } else if (dep.status === "accepted") {
-        setDepositStatus(t("deposit_modal.status_accepted"), "pending");
-      } else if (dep.status === "failed") {
-        setDepositStatus(t("deposit_modal.status_failed"), "failed");
+        renderAll();
+      } else if (anyFailed) {
+        setTradeStatus(t("trade_panel.status_failed"), "failed");
         clearInterval(state.pollingTimer);
+        state.depositInProgress = false;
+        $("trade-deposit-btn").disabled = false;
+      } else if (anyAccepted) {
+        setTradeStatus(t("trade_panel.status_accepted"), "pending");
       }
+      // else: still "sent" — keep polling
     } catch {}
   }, 5000);
 }
 
-// ── Modal: Withdraw ──────────────────────────────────────────────────────────
+// ── Withdraw ─────────────────────────────────────────────────────────────────
 function openWithdrawModal() {
   const m = $("withdraw-modal");
   $("withdraw-modal-title").textContent = t("withdraw_modal.title");
@@ -226,6 +302,11 @@ function openWithdrawModal() {
   $("withdraw-confirm-btn").disabled = state.balance === 0;
   m.classList.remove("hidden");
   $("modal-overlay").classList.remove("hidden");
+}
+
+function closeModal() {
+  $("withdraw-modal").classList.add("hidden");
+  $("modal-overlay").classList.add("hidden");
 }
 
 function setWithdrawStatus(text, cls) {
@@ -243,7 +324,6 @@ async function submitWithdraw() {
 
   try {
     const w = await api.createWithdrawal(tradeUrl);
-    state.withdrawalId = w.id;
     pollWithdrawStatus(w.id);
   } catch (e) {
     setWithdrawStatus(e.message, "failed");
@@ -252,54 +332,40 @@ async function submitWithdraw() {
 }
 
 function pollWithdrawStatus(id) {
-  if (state.pollingTimer) clearInterval(state.pollingTimer);
-  state.pollingTimer = setInterval(async () => {
+  const timer = setInterval(async () => {
     try {
       const w = await api.getWithdrawal(id);
       if (w.status === "sending") {
         setWithdrawStatus(t("withdraw_modal.status_sending"), "pending");
       } else if (w.status === "delivered") {
         setWithdrawStatus(t("withdraw_modal.status_delivered"), "success");
-        clearInterval(state.pollingTimer);
+        clearInterval(timer);
         await refreshBalance();
         renderHero();
       } else if (w.status === "failed") {
         setWithdrawStatus(t("withdraw_modal.status_failed"), "failed");
-        clearInterval(state.pollingTimer);
+        clearInterval(timer);
       }
     } catch {}
   }, 5000);
 }
 
-// ── History ──────────────────────────────────────────────────────────────────
-async function renderHistory() {
-  $("history-title").textContent = t("history.title");
-  $("history-col-type").textContent = t("history.col_type");
-  $("history-col-skin").textContent = t("history.col_skin");
-  $("history-col-status").textContent = t("history.col_status");
-  $("history-col-date").textContent = t("history.col_date");
-  $("history-col-tx").textContent = t("history.col_tx");
-
-  const tbody = $("history-tbody");
-  if (!state.user) return;
+// ── Trade URL ─────────────────────────────────────────────────────────────────
+async function saveTradeUrl() {
+  const input = $("trade-url-input");
+  const btn = $("trade-url-save-btn");
+  const url = input.value.trim();
+  if (!url) return;
+  btn.disabled = true;
   try {
-    const items = await api.getHistory();
-    tbody.innerHTML = "";
-    if (!items.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="history-empty">${t("history.empty")}</td></tr>`;
-      return;
-    }
-    items.forEach((item) => {
-      const tr = document.createElement("tr");
-      const tx = item.tx_hash
-        ? `<a href="https://sepolia.etherscan.io/tx/${item.tx_hash}" target="_blank">${item.tx_hash.slice(0, 8)}…</a>`
-        : "—";
-      const date = new Date(item.created_at).toLocaleDateString();
-      const type = item.type === "deposit" ? t("history.type_deposit") : t("history.type_withdraw");
-      tr.innerHTML = `<td>${type}</td><td>P250 Sand Dune MW</td><td class="status-${item.status}">${item.status}</td><td>${date}</td><td>${tx}</td>`;
-      tbody.appendChild(tr);
-    });
-  } catch {}
+    await api.saveTradeUrl(url);
+    state.user.steam_trade_url = url;
+    await loadInventory();
+    renderAll();
+  } catch (e) {
+    alert(e.message);
+    btn.disabled = false;
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -312,8 +378,7 @@ async function refreshBalance() {
 }
 
 async function loadInventory() {
-  if (!state.user) return;
-  if (!state.user.steam_trade_url) {
+  if (!state.user || !state.user.steam_trade_url) {
     state.inventory = [];
     state.inventoryError = null;
     return;
@@ -364,33 +429,33 @@ function bindEvents() {
     }
   });
 
-  $("hero-deposit-btn").addEventListener("click", () => {
-    if (state.inventory.length > 0) {
-      openDepositModal(state.inventory[0].asset_id);
-    }
-  });
-
   $("hero-withdraw-btn").addEventListener("click", openWithdrawModal);
-
-  $("deposit-confirm-btn").addEventListener("click", submitDeposit);
   $("withdraw-confirm-btn").addEventListener("click", submitWithdraw);
   $("modal-overlay").addEventListener("click", closeModal);
-  $("deposit-modal-close").addEventListener("click", closeModal);
   $("withdraw-modal-close").addEventListener("click", closeModal);
 
   $("trade-url-save-btn").addEventListener("click", saveTradeUrl);
+  $("trade-deposit-btn").addEventListener("click", submitDeposit);
 
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("skin-deposit-btn")) {
-      const assetId = e.target.dataset.asset;
-      openDepositModal(assetId);
-    }
+  // Inventory card click — toggle selection
+  $("inventory-grid").addEventListener("click", (e) => {
+    const card = e.target.closest(".skin-card");
+    if (!card) return;
+    const assetId = card.dataset.asset;
+    const item = state.inventory.find((i) => i.asset_id === assetId);
+    if (item) toggleAsset(item);
+  });
+
+  // Trade panel — remove item
+  $("trade-items").addEventListener("click", (e) => {
+    const btn = e.target.closest(".trade-item-remove");
+    if (!btn) return;
+    removeAsset(btn.dataset.asset);
   });
 
   document.addEventListener("localechange", () => {
     renderAll();
     renderLangSwitcher();
-    renderHistory();
   });
 }
 
@@ -408,7 +473,6 @@ async function init() {
   }
 
   renderAll();
-  renderHistory();
 }
 
 init();
