@@ -183,6 +183,10 @@ def request_items_from_user(
         trade_offer_url=trade_url,
         message=message,
     )
+    logger.info("make_offer_with_url response: %s", offer)
+    if not offer or "tradeofferid" not in offer:
+        error = offer.get("strError") if offer else "null response"
+        raise RuntimeError(f"Trade offer creation failed: {error}")
     trade_offer_id = offer["tradeofferid"]
     logger.info("Deposit trade offer sent to %s: %s", user_steam_id, trade_offer_id)
     return trade_offer_id
