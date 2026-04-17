@@ -16,20 +16,21 @@
     "empty": "No P250 Sand Dune (Minimal Wear) skins available",
     "private": "Your Steam inventory is private. Change it to public in Steam settings.",
     "not_tradable": "Not tradable",
-    "tradable": "Tradable",
-    "deposit_btn": "Deposit"
+    "tradable": "Tradable"
   },
-  "deposit_modal": {
-    "title": "Deposit Skin",
-    "skin_name": "P250 | Sand Dune (Minimal Wear)",
-    "step1": "Send a trade offer to our bot:",
-    "trade_link_label": "Bot trade link",
-    "step2": "After sending — click the button below",
-    "confirm_btn": "I sent the trade offer",
-    "status_waiting": "Waiting for trade",
-    "status_accepted": "Trade accepted",
-    "status_minted": "Token issued",
-    "status_failed": "Failed"
+  "trade_panel": {
+    "title": "Deposit",
+    "empty": "Click on skins to select for deposit",
+    "count_one": "1 skin selected",
+    "count_many": "{n} skins selected",
+    "deposit_btn": "Send Deposit",
+    "max_warning": "Maximum 50 skins per deposit",
+    "no_wallet": "Connect wallet first",
+    "status_pending": "Creating deposit...",
+    "status_sent": "Trade offer sent — accept it in the Steam app",
+    "status_accepted": "Trade accepted, minting tokens...",
+    "status_minted": "Done! Tokens minted.",
+    "status_failed": "Deposit failed. Please try again."
   },
   "withdraw_modal": {
     "title": "Withdraw Skin",
@@ -43,21 +44,10 @@
     "status_failed": "Failed",
     "no_tokens": "You have no tokens to withdraw"
   },
-  "history": {
-    "title": "History",
-    "col_type": "Type",
-    "col_skin": "Skin",
-    "col_status": "Status",
-    "col_date": "Date",
-    "col_tx": "TX",
-    "type_deposit": "Deposit",
-    "type_withdraw": "Withdraw",
-    "empty": "No operations yet"
-  },
   "trade_url": {
-    "label": "Enter your Steam Trade URL to view inventory",
-    "hint": "Find it in Steam → Profile → Trade Offers → Who can send me Trade Offers → Your Trade URL",
-    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...&token=...",
+    "label": "Set up your Steam Trade URL to view inventory",
+    "hint": "Required to send trade offers. Found in Steam \u2192 Profile \u2192 Trade offers.",
+    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
     "save_btn": "Save"
   },
   "errors": {

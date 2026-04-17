@@ -1,70 +1,60 @@
 {
   "nav": {
-    "connect_metamask": "Подключить кошелёк",
-    "login_steam": "Войти через Steam",
-    "logout": "Выйти",
-    "balance": "Баланс"
+    "connect_metamask": "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043a\u043e\u0448\u0435\u043b\u0451\u043a",
+    "login_steam": "\u0412\u043e\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 Steam",
+    "logout": "\u0412\u044b\u0439\u0442\u0438",
+    "balance": "\u0411\u0430\u043b\u0430\u043d\u0441"
   },
   "hero": {
-    "title": "Токенизируй свой скин",
-    "subtitle": "Депонируй P250 Sand Dune (Minimal Wear) — получи ERC-20 токен на Sepolia. Сожги токен — верни скин.",
-    "deposit_btn": "Депозит",
-    "withdraw_btn": "Вывод"
+    "title": "\u0422\u043e\u043a\u0435\u043d\u0438\u0437\u0438\u0440\u0443\u0439 \u0441\u0432\u043e\u0439 \u0441\u043a\u0438\u043d",
+    "subtitle": "\u0414\u0435\u043f\u043e\u043d\u0438\u0440\u0443\u0439 P250 Sand Dune (Minimal Wear) \u2014 \u043f\u043e\u043b\u0443\u0447\u0438 ERC-20 \u0442\u043e\u043a\u0435\u043d \u043d\u0430 Sepolia. \u0421\u043e\u0436\u0433\u0438 \u0442\u043e\u043a\u0435\u043d \u2014 \u0432\u0435\u0440\u043d\u0438 \u0441\u043a\u0438\u043d.",
+    "deposit_btn": "\u0414\u0435\u043f\u043e\u0437\u0438\u0442",
+    "withdraw_btn": "\u0412\u044b\u0432\u043e\u0434"
   },
   "inventory": {
-    "title": "Ваш инвентарь",
-    "empty": "Нет скинов P250 Sand Dune (Minimal Wear)",
-    "private": "Ваш инвентарь Steam закрыт. Сделайте его публичным в настройках Steam.",
-    "not_tradable": "Не торгуемый",
-    "tradable": "Торгуемый",
-    "deposit_btn": "Депонировать"
+    "title": "\u0412\u0430\u0448 \u0438\u043d\u0432\u0435\u043d\u0442\u0430\u0440\u044c",
+    "empty": "\u041d\u0435\u0442 \u0441\u043a\u0438\u043d\u043e\u0432 P250 Sand Dune (Minimal Wear)",
+    "private": "\u0412\u0430\u0448 \u0438\u043d\u0432\u0435\u043d\u0442\u0430\u0440\u044c Steam \u0437\u0430\u043a\u0440\u044b\u0442. \u0421\u0434\u0435\u043b\u0430\u0439\u0442\u0435 \u0435\u0433\u043e \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u043c \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445 Steam.",
+    "not_tradable": "\u041d\u0435 \u0442\u043e\u0440\u0433\u0443\u0435\u043c\u044b\u0439",
+    "tradable": "\u0422\u043e\u0440\u0433\u0443\u0435\u043c\u044b\u0439"
   },
-  "deposit_modal": {
-    "title": "Депозит скина",
-    "skin_name": "P250 | Sand Dune (Minimal Wear)",
-    "step1": "Отправьте трейд-оффер нашему боту:",
-    "trade_link_label": "Ссылка на трейд бота",
-    "step2": "После отправки — нажмите кнопку ниже",
-    "confirm_btn": "Я отправил трейд-оффер",
-    "status_waiting": "Ожидание трейда",
-    "status_accepted": "Трейд принят",
-    "status_minted": "Токен выпущен",
-    "status_failed": "Ошибка"
+  "trade_panel": {
+    "title": "\u0414\u0435\u043f\u043e\u0437\u0438\u0442",
+    "empty": "\u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u043d\u0430 \u0441\u043a\u0438\u043d\u044b \u0434\u043b\u044f \u0432\u044b\u0431\u043e\u0440\u0430",
+    "count_one": "1 \u0441\u043a\u0438\u043d \u0432\u044b\u0431\u0440\u0430\u043d",
+    "count_many": "{n} \u0441\u043a\u0438\u043d\u0430(\u043e\u0432) \u0432\u044b\u0431\u0440\u0430\u043d\u043e",
+    "deposit_btn": "\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0434\u0435\u043f\u043e\u0437\u0438\u0442",
+    "max_warning": "\u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c 50 \u0441\u043a\u0438\u043d\u043e\u0432 \u0437\u0430 \u043e\u0434\u0438\u043d \u0434\u0435\u043f\u043e\u0437\u0438\u0442",
+    "no_wallet": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u043a\u043e\u0448\u0435\u043b\u0451\u043a",
+    "status_pending": "\u0421\u043e\u0437\u0434\u0430\u0451\u043c \u0434\u0435\u043f\u043e\u0437\u0438\u0442...",
+    "status_sent": "\u0422\u0440\u0435\u0439\u0434-\u043e\u0444\u0444\u0435\u0440 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d \u2014 \u043f\u0440\u0438\u043c\u0438\u0442\u0435 \u0435\u0433\u043e \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438 Steam",
+    "status_accepted": "\u0422\u0440\u0435\u0439\u0434 \u043f\u0440\u0438\u043d\u044f\u0442, \u043c\u0438\u043d\u0442\u0438\u043c \u0442\u043e\u043a\u0435\u043d\u044b...",
+    "status_minted": "\u0413\u043e\u0442\u043e\u0432\u043e! \u0422\u043e\u043a\u0435\u043d\u044b \u0432\u044b\u043f\u0443\u0449\u0435\u043d\u044b.",
+    "status_failed": "\u0414\u0435\u043f\u043e\u0437\u0438\u0442 \u043d\u0435 \u0443\u0434\u0430\u043b\u0441\u044f. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430."
   },
   "withdraw_modal": {
-    "title": "Вывод скина",
-    "balance_label": "Ваш баланс токенов",
-    "trade_url_label": "Ваша Trade URL в Steam",
+    "title": "\u0412\u044b\u0432\u043e\u0434 \u0441\u043a\u0438\u043d\u0430",
+    "balance_label": "\u0412\u0430\u0448 \u0431\u0430\u043b\u0430\u043d\u0441 \u0442\u043e\u043a\u0435\u043d\u043e\u0432",
+    "trade_url_label": "\u0412\u0430\u0448\u0430 Trade URL \u0432 Steam",
     "trade_url_placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
-    "confirm_btn": "Сжечь токен и получить скин",
-    "status_burning": "Сжигание токена",
-    "status_sending": "Бот отправляет скин",
-    "status_delivered": "Доставлено",
-    "status_failed": "Ошибка",
-    "no_tokens": "У вас нет токенов для вывода"
-  },
-  "history": {
-    "title": "История",
-    "col_type": "Тип",
-    "col_skin": "Скин",
-    "col_status": "Статус",
-    "col_date": "Дата",
-    "col_tx": "TX",
-    "type_deposit": "Депозит",
-    "type_withdraw": "Вывод",
-    "empty": "Нет операций"
+    "confirm_btn": "\u0421\u0436\u0435\u0447\u044c \u0442\u043e\u043a\u0435\u043d \u0438 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043a\u0438\u043d",
+    "status_burning": "\u0421\u0436\u0438\u0433\u0430\u043d\u0438\u0435 \u0442\u043e\u043a\u0435\u043d\u0430",
+    "status_sending": "\u0411\u043e\u0442 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442 \u0441\u043a\u0438\u043d",
+    "status_delivered": "\u0414\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e",
+    "status_failed": "\u041e\u0448\u0438\u0431\u043a\u0430",
+    "no_tokens": "\u0423 \u0432\u0430\u0441 \u043d\u0435\u0442 \u0442\u043e\u043a\u0435\u043d\u043e\u0432 \u0434\u043b\u044f \u0432\u044b\u0432\u043e\u0434\u0430"
   },
   "trade_url": {
-    "label": "Введите вашу Steam Trade URL для просмотра инвентаря",
-    "hint": "Найдите в Steam → Профиль → Трейд-офферы → Кто может присылать мне трейд-офферы → Ваша Trade URL",
-    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...&token=...",
-    "save_btn": "Сохранить"
+    "label": "\u0423\u043a\u0430\u0436\u0438\u0442\u0435 Trade URL \u0434\u043b\u044f \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0430 \u0438\u043d\u0432\u0435\u043d\u0442\u0430\u0440\u044f",
+    "hint": "\u041d\u0443\u0436\u0435\u043d \u0434\u043b\u044f \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0438 \u0442\u0440\u0435\u0439\u0434-\u043e\u0444\u0444\u0435\u0440\u043e\u0432. \u041d\u0430\u0439\u0434\u0438\u0442\u0435 \u0432 Steam \u2192 \u041f\u0440\u043e\u0444\u0438\u043b\u044c \u2192 \u0422\u0440\u0435\u0439\u0434-\u043e\u0444\u0444\u0435\u0440\u044b.",
+    "placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
+    "save_btn": "\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c"
   },
   "errors": {
-    "metamask_not_found": "MetaMask не найден. Установите расширение.",
-    "not_logged_in": "Сначала войдите через Steam",
-    "no_wallet": "Сначала подключите кошелёк",
-    "inventory_load_failed": "Не удалось загрузить инвентарь",
-    "generic": "Что-то пошло не так"
+    "metamask_not_found": "MetaMask \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d. \u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435.",
+    "not_logged_in": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0432\u043e\u0439\u0434\u0438\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 Steam",
+    "no_wallet": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u043a\u043e\u0448\u0435\u043b\u0451\u043a",
+    "inventory_load_failed": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0438\u043d\u0432\u0435\u043d\u0442\u0430\u0440\u044c",
+    "generic": "\u0427\u0442\u043e-\u0442\u043e \u043f\u043e\u0448\u043b\u043e \u043d\u0435 \u0442\u0430\u043a"
   }
 }
