@@ -31,11 +31,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ trade_url }),
     }),
-  createDeposit: (asset_id) =>
+  createDeposit: (assets) =>
     req("/deposit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ asset_id }),
+      body: JSON.stringify({ assets }),
     }),
   getDeposit: (id) => req(`/deposit/${id}`),
   createWithdrawal: (trade_url) =>
