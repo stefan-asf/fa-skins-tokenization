@@ -28,7 +28,7 @@
     <!-- ── Main ── -->
     <main>
 
-      <!-- Left column -->
+      <!-- Left column: hero + inventory -->
       <div class="left-col">
         <div class="hero">
           <div class="hero-text">
@@ -36,7 +36,6 @@
             <p id="hero-subtitle"></p>
           </div>
           <div class="hero-actions">
-            <button id="hero-deposit-btn" class="btn-primary" disabled></button>
             <button id="hero-withdraw-btn" class="btn-secondary" disabled></button>
           </div>
         </div>
@@ -61,24 +60,20 @@
         </section>
       </div>
 
-      <!-- Right column: History -->
-      <div class="history-panel">
-        <div class="history-panel-header" id="history-title"></div>
-        <div class="history-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th id="history-col-type"></th>
-                <th id="history-col-skin"></th>
-                <th id="history-col-status"></th>
-                <th id="history-col-date"></th>
-                <th id="history-col-tx"></th>
-              </tr>
-            </thead>
-            <tbody id="history-tbody">
-              <tr><td colspan="5" class="history-empty">—</td></tr>
-            </tbody>
-          </table>
+      <!-- Right column: Trade panel -->
+      <div class="trade-panel" id="trade-panel">
+        <div class="trade-panel-header" id="trade-panel-title"></div>
+
+        <!-- Selected items list -->
+        <div class="trade-items" id="trade-items">
+          <p class="trade-empty" id="trade-empty-msg"></p>
+        </div>
+
+        <!-- Footer: count + button + status -->
+        <div class="trade-footer" id="trade-footer">
+          <div class="trade-count" id="trade-count"></div>
+          <button id="trade-deposit-btn" class="btn-primary" disabled></button>
+          <div id="trade-status" class="status-bar"></div>
         </div>
       </div>
 
@@ -87,19 +82,6 @@
 
   <!-- ── Overlay ── -->
   <div id="modal-overlay" class="hidden">
-
-    <!-- Deposit modal -->
-    <div id="deposit-modal" class="modal hidden" role="dialog">
-      <div class="modal-header">
-        <span class="modal-title" id="deposit-modal-title"></span>
-        <button class="modal-close" id="deposit-modal-close">✕</button>
-      </div>
-      <p class="modal-step" id="deposit-step1"></p>
-      <a id="bot-trade-link" class="bot-trade-link" href="#" target="_blank">—</a>
-      <p class="modal-step" id="deposit-step2"></p>
-      <button id="deposit-confirm-btn" class="btn-primary"></button>
-      <div id="deposit-status" class="status-bar"></div>
-    </div>
 
     <!-- Withdraw modal -->
     <div id="withdraw-modal" class="modal hidden" role="dialog">
