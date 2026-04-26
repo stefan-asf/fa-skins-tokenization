@@ -238,30 +238,42 @@ def request_items_from_user(
         raise RuntimeError(f"Trade offer creation failed: {error}")
     trade_offer_id = offer["tradeofferid"]
     logger.info("Deposit trade offer sent to %s: %s", user_steam_id, trade_offer_id)
-    try:
-        client.confirm_trade_offer(trade_offer_id)
-        logger.info("Trade offer %s confirmed via 2FA", trade_offer_id)
-    except Exception as e:
-        logger.warning("Could not confirm trade offer %s: %s", trade_offer_id, e)
     return trade_offer_id
 
 
 def get_trade_offer_state(trade_offer_id: str) -> int:
     """
-    Запрашивает состояние трейд-оффера через Steam Web API (без логина бота).
-    Возвращает целочисленный trade_offer_state.
+    Запрашивает состояние трейд-оффера через Steam Web API.
+    Использует access token бота из mafile (работает для трейдов бота).
     Возможные состояния:
       1=Invalid, 2=Active, 3=Accepted, 4=Countered, 5=Expired,
       6=Canceled, 7=Declined, 8=InvalidItems, 9=CreatedNeedsConfirmation,
       10=CanceledBySecondFactor, 11=InEscrow
     """
+    import json as _json
+
+    params: dict = {"tradeofferid": trade_offer_id, "language": "en"}
+
+    # Prefer bot's access token — GetTradeOffer requires the key owner to be
+    # a party in the trade, so API key from a different account won't work.
+    try:
+        with open(_get_mafile_path()) as f:
+            mafile = _json.load(f)
+        mafile_session = mafile.get("Session", {})
+        steam_id = mafile.get("steamid") or mafile_session.get("SteamID")
+        access_token = _get_fresh_access_token(mafile_session, steam_id)
+        if access_token:
+            params["access_token"] = access_token
+        elif settings.steam_api_key:
+            params["key"] = settings.steam_api_key
+    except Exception as e:
+        logger.warning("Could not load mafile for trade state check, falling back to API key: %s", e)
+        if settings.steam_api_key:
+            params["key"] = settings.steam_api_key
+
     resp = requests.get(
         "https://api.steampowered.com/IEconService/GetTradeOffer/v1/",
-        params={
-            "key": settings.steam_api_key,
-            "tradeofferid": trade_offer_id,
-            "language": "en",
-        },
+        params=params,
         timeout=15,
     )
     resp.raise_for_status()
