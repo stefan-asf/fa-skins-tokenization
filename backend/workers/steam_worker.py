@@ -223,21 +223,34 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
         first = withdrawals[0]
         client = get_client()
 
-        # Find N target skins in bot inventory
-        raw_inv = client.get_my_inventory(GAME)
-        skin_items = [
-            (asset_id, item)
-            for asset_id, item in raw_inv.items()
-            if SKIN_MARKET_HASH in item.get("market_hash_name", "")
-            and item.get("tradable", 0)
-        ][:n]
+        # Get bot's steam_id from mafile
+        import json as _json
+        from app.services.steam_bot import _get_mafile_path
+        with open(_get_mafile_path()) as f:
+            _mf = _json.load(f)
+        bot_steam_id = _mf.get("steamid") or _mf.get("Session", {}).get("SteamID")
 
-        if len(skin_items) < n:
-            raise RuntimeError(
-                f"Bot only has {len(skin_items)} tradable skin(s), need {n}"
-            )
+        # Find N target skins via the same inventory service used for users
+        from app.services.steam_inventory import fetch_user_inventory
+        from steampy.models import Asset
+        inv_data = fetch_user_inventory(bot_steam_id)
+        desc_map = {
+            f"{d['classid']}_{d['instanceid']}": d
+            for d in inv_data.get("descriptions", [])
+        }
+        skin_asset_ids = []
+        for asset in inv_data.get("assets", []):
+            key = f"{asset['classid']}_{asset['instanceid']}"
+            desc = desc_map.get(key, {})
+            if SKIN_MARKET_HASH in desc.get("market_hash_name", "") and desc.get("tradable"):
+                skin_asset_ids.append(str(asset["assetid"]))
+            if len(skin_asset_ids) >= n:
+                break
 
-        items_to_send = [item for _, item in skin_items]
+        if len(skin_asset_ids) < n:
+            raise RuntimeError(f"Bot only has {len(skin_asset_ids)} tradable skin(s), need {n}")
+
+        items_to_send = [Asset(asset_id=aid, game=GAME, amount=1) for aid in skin_asset_ids]
         offer = client.make_offer_with_url(
             items_from_me=items_to_send,
             items_from_them=[],
@@ -253,7 +266,7 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
 
         for i, w in enumerate(withdrawals):
             w.trade_offer_id = trade_offer_id
-            w.asset_id = skin_items[i][0]
+            w.asset_id = skin_asset_ids[i]
             w.status = "sending"
         db.commit()
 
