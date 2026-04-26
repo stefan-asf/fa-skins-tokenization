@@ -288,18 +288,8 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
                 _log(db, "withdrawal", w.id, "trade_sent", trade_offer_id)
             logger.info("Withdrawal trade %s sent for withdrawals %s", trade_offer_id, withdrawal_ids)
 
-        # Confirm outgoing trade via mobile 2FA (required when bot sends items)
-        try:
-            confirmations = client.get_confirmations()
-            for conf in confirmations:
-                if str(getattr(conf, "trade_offer_id", None)) == str(trade_offer_id):
-                    client.allow_confirmation(conf)
-                    logger.info("Withdrawal trade %s confirmed via 2FA", trade_offer_id)
-                    break
-            else:
-                logger.warning("No confirmation found for trade %s (may already be confirmed)", trade_offer_id)
-        except Exception as e:
-            logger.warning("Could not confirm withdrawal trade %s: %s", trade_offer_id, e)
+        # steampy confirms the trade internally via _confirm_transaction inside make_offer_with_url
+        logger.info("Withdrawal trade %s created and confirmed by steampy", trade_offer_id)
 
         poll_withdrawal_trade_status.apply_async(
             args=[trade_offer_id, withdrawal_ids],

@@ -95,6 +95,10 @@ def get_client() -> SteamClient:
     # Load mafile for steam_guard (needed for trade confirmation via 2FA)
     with open(_get_mafile_path()) as f:
         client.steam_guard = _json.load(f)
+    # SteamID may be stored as int in JSON; steampy's guard.generate_device_id requires str
+    _sess = client.steam_guard.get("Session", {})
+    if isinstance(_sess.get("SteamID"), int):
+        _sess["SteamID"] = str(_sess["SteamID"])
 
     mafile_session = client.steam_guard.get("Session", {})
 
