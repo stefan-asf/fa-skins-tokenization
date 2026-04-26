@@ -442,6 +442,7 @@ function bindEvents() {
   $("hero-withdraw-btn").addEventListener("click", openWithdrawModal);
   $("withdraw-confirm-btn").addEventListener("click", submitWithdraw);
   $("modal-overlay").addEventListener("click", closeModal);
+  $("withdraw-modal").addEventListener("click", (e) => e.stopPropagation());
   $("withdraw-modal-close").addEventListener("click", closeModal);
 
   $("trade-url-save-btn").addEventListener("click", saveTradeUrl);
