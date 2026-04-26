@@ -61,7 +61,7 @@ def create_withdrawal(
             asset_id="tbd",
             skin_name=_SKIN_NAME,
             trade_url=current_user.steam_trade_url,
-            status="burning",
+            status="pending_trade",
         )
         db.add(w)
         withdrawals.append(w)
@@ -72,8 +72,8 @@ def create_withdrawal(
 
     withdrawal_ids = [w.id for w in withdrawals]
 
-    from workers.blockchain_worker import burn_for_withdrawal
-    burn_for_withdrawal.delay(withdrawal_ids)
+    from workers.steam_worker import send_withdrawal_trade
+    send_withdrawal_trade.delay(withdrawal_ids)
 
     return {"id": withdrawal_ids[0], "ids": withdrawal_ids}
 

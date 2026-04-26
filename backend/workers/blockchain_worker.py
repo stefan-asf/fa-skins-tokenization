@@ -63,7 +63,8 @@ def mint_for_deposit(self, deposit_id: int):
 @celery_app.task(name="blockchain.burn_for_withdrawal", bind=True, max_retries=3)
 def burn_for_withdrawal(self, withdrawal_ids: list):
     """
-    Сжигает N токенов за один вызов, затем запускает отправку скинов через Steam.
+    Сжигает N токенов после того, как пользователь принял трейд-оффер.
+    Финальный шаг: переводит записи в статус 'delivered'.
     """
     db = SessionLocal()
     try:
@@ -80,19 +81,15 @@ def burn_for_withdrawal(self, withdrawal_ids: list):
 
         for w in withdrawals:
             w.burn_tx_hash = tx_hash
-            w.status = "sending"
+            w.status = "delivered"
         db.commit()
 
         for w in withdrawals:
-            _log(db, "withdrawal", w.id, "burned", tx_hash)
-
-        from workers.steam_worker import send_withdrawal_trade
-        send_withdrawal_trade.delay(withdrawal_ids)
+            _log(db, "withdrawal", w.id, "burned_and_delivered", tx_hash)
+        logger.info("Withdrawals %s delivered, tokens burned", withdrawal_ids)
 
     except Exception as exc:
         logger.error("burn_for_withdrawal error: %s", exc)
-        db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
-        db.commit()
         try:
             for w_id in withdrawal_ids:
                 _log(db, "withdrawal", w_id, "burn_failed", str(exc))

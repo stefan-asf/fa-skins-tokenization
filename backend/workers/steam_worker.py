@@ -336,11 +336,11 @@ def poll_withdrawal_trade_status(self, trade_offer_id: str, withdrawal_ids: list
         logger.info("Withdrawal trade %s current state: %d", trade_offer_id, state)
 
         if state == _STATE_ACCEPTED:
-            db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "delivered"})
-            db.commit()
             for w_id in withdrawal_ids:
-                _log(db, "withdrawal", w_id, "delivered", trade_offer_id)
-            logger.info("Withdrawal trade %s accepted, withdrawals delivered", trade_offer_id)
+                _log(db, "withdrawal", w_id, "trade_accepted", trade_offer_id)
+            logger.info("Withdrawal trade %s accepted, queuing token burn", trade_offer_id)
+            from workers.blockchain_worker import burn_for_withdrawal
+            burn_for_withdrawal.delay(withdrawal_ids)
 
         elif state in _STATE_TERMINAL:
             db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
