@@ -223,17 +223,19 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
         first = withdrawals[0]
         client = get_client()
 
-        # Get bot's steam_id from mafile
+        # Get bot's steam_id and access token from mafile
         import json as _json
-        from app.services.steam_bot import _get_mafile_path
+        from app.services.steam_bot import _get_mafile_path, _get_fresh_access_token
         with open(_get_mafile_path()) as f:
             _mf = _json.load(f)
-        bot_steam_id = _mf.get("steamid") or _mf.get("Session", {}).get("SteamID")
+        _mf_session = _mf.get("Session", {})
+        bot_steam_id = _mf.get("steamid") or _mf_session.get("SteamID")
+        bot_access_token = _get_fresh_access_token(_mf_session, bot_steam_id)
 
         # Find N target skins via the same inventory service used for users
         from app.services.steam_inventory import fetch_user_inventory
         from steampy.models import Asset
-        inv_data = fetch_user_inventory(bot_steam_id)
+        inv_data = fetch_user_inventory(bot_steam_id, user_token=bot_access_token)
         desc_map = {
             f"{d['classid']}_{d['instanceid']}": d
             for d in inv_data.get("descriptions", [])

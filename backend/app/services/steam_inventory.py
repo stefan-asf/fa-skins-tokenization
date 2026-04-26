@@ -74,9 +74,10 @@ def _fetch_via_node(steam_id: str) -> dict:
     if resp.status_code == 404:
         raise HTTPException(status_code=404, detail="Steam profile not found")
     if resp.status_code != 200:
+        # 502/5xx from Node = Steam API issue, try fallback methods
         data = resp.json() if resp.content else {}
         detail = data.get("error", f"Inventory service returned {resp.status_code}")
-        raise HTTPException(status_code=502, detail=detail)
+        raise _NodeServiceUnavailable(detail)
 
     return resp.json()
 
