@@ -212,6 +212,8 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
     Вызывается blockchain_worker'ом после сжигания токенов.
     """
     from app.services.steam_bot import SKIN_MARKET_HASH, GAME
+    from celery.exceptions import MaxRetriesExceededError
+
     db = SessionLocal()
     try:
         withdrawals = db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).all()
@@ -223,48 +225,68 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
         first = withdrawals[0]
         client = get_client()
 
-        # Get bot's steam_id and access token from mafile
-        import json as _json
-        from app.services.steam_bot import _get_mafile_path, _get_fresh_access_token
-        with open(_get_mafile_path()) as f:
-            _mf = _json.load(f)
-        _mf_session = _mf.get("Session", {})
-        bot_steam_id = _mf.get("steamid") or _mf_session.get("SteamID")
-        bot_access_token = _get_fresh_access_token(_mf_session, bot_steam_id)
-
-        # Find N target skins via the same inventory service used for users
-        from app.services.steam_inventory import fetch_user_inventory
-        from steampy.models import Asset
-        inv_data = fetch_user_inventory(bot_steam_id, user_token=bot_access_token)
-        desc_map = {
-            f"{d['classid']}_{d['instanceid']}": d
-            for d in inv_data.get("descriptions", [])
-        }
-        skin_asset_ids = []
-        for asset in inv_data.get("assets", []):
-            key = f"{asset['classid']}_{asset['instanceid']}"
-            desc = desc_map.get(key, {})
-            if SKIN_MARKET_HASH in desc.get("market_hash_name", "") and desc.get("tradable"):
-                skin_asset_ids.append(str(asset["assetid"]))
-            if len(skin_asset_ids) >= n:
-                break
-
-        if len(skin_asset_ids) < n:
-            raise RuntimeError(f"Bot only has {len(skin_asset_ids)} tradable skin(s), need {n}")
-
-        items_to_send = [Asset(asset_id=aid, game=GAME, amount=1) for aid in skin_asset_ids]
-        offer = client.make_offer_with_url(
-            items_from_me=items_to_send,
-            items_from_them=[],
-            trade_offer_url=first.trade_url,
-            message="FA Skins — your skin withdrawal",
+        # If a prior attempt already created the trade offer, skip straight to confirmation.
+        trade_offer_id = next(
+            (w.trade_offer_id for w in withdrawals if w.trade_offer_id),
+            None,
         )
-        logger.info("make_offer_with_url response: %s", offer)
-        if not offer or "tradeofferid" not in offer:
-            error = offer.get("strError") if offer else "null response"
-            raise RuntimeError(f"Trade offer creation failed: {error}")
 
-        trade_offer_id = offer["tradeofferid"]
+        if trade_offer_id:
+            logger.info("Trade offer %s already exists (prior attempt), retrying 2FA confirmation", trade_offer_id)
+        else:
+            # Get bot's steam_id and access token from mafile
+            import json as _json
+            from app.services.steam_bot import _get_mafile_path, _get_fresh_access_token
+            with open(_get_mafile_path()) as f:
+                _mf = _json.load(f)
+            _mf_session = _mf.get("Session", {})
+            bot_steam_id = _mf.get("steamid") or _mf_session.get("SteamID")
+            bot_access_token = _get_fresh_access_token(_mf_session, bot_steam_id)
+
+            # Find N target skins via the same inventory service used for users
+            from app.services.steam_inventory import fetch_user_inventory
+            from steampy.models import Asset
+            inv_data = fetch_user_inventory(bot_steam_id, user_token=bot_access_token)
+            desc_map = {
+                f"{d['classid']}_{d['instanceid']}": d
+                for d in inv_data.get("descriptions", [])
+            }
+            skin_asset_ids = []
+            for asset in inv_data.get("assets", []):
+                key = f"{asset['classid']}_{asset['instanceid']}"
+                desc = desc_map.get(key, {})
+                if SKIN_MARKET_HASH in desc.get("market_hash_name", "") and desc.get("tradable"):
+                    skin_asset_ids.append(str(asset["assetid"]))
+                if len(skin_asset_ids) >= n:
+                    break
+
+            if len(skin_asset_ids) < n:
+                raise RuntimeError(f"Bot only has {len(skin_asset_ids)} tradable skin(s), need {n}")
+
+            items_to_send = [Asset(asset_id=aid, game=GAME, amount=1) for aid in skin_asset_ids]
+            offer = client.make_offer_with_url(
+                items_from_me=items_to_send,
+                items_from_them=[],
+                trade_offer_url=first.trade_url,
+                message="FA Skins — your skin withdrawal",
+            )
+            logger.info("make_offer_with_url response: %s", offer)
+            if not offer or "tradeofferid" not in offer:
+                error = offer.get("strError") if offer else "null response"
+                raise RuntimeError(f"Trade offer creation failed: {error}")
+
+            trade_offer_id = offer["tradeofferid"]
+
+            # Persist trade_offer_id BEFORE confirmation so retries can reuse it
+            for i, w in enumerate(withdrawals):
+                w.trade_offer_id = trade_offer_id
+                w.asset_id = skin_asset_ids[i]
+                w.status = "sending"
+            db.commit()
+
+            for w in withdrawals:
+                _log(db, "withdrawal", w.id, "trade_sent", trade_offer_id)
+            logger.info("Withdrawal trade %s sent for withdrawals %s", trade_offer_id, withdrawal_ids)
 
         # Confirm outgoing trade via mobile 2FA (required when bot sends items)
         try:
@@ -275,19 +297,9 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
                     logger.info("Withdrawal trade %s confirmed via 2FA", trade_offer_id)
                     break
             else:
-                logger.warning("No confirmation found for trade %s", trade_offer_id)
+                logger.warning("No confirmation found for trade %s (may already be confirmed)", trade_offer_id)
         except Exception as e:
             logger.warning("Could not confirm withdrawal trade %s: %s", trade_offer_id, e)
-
-        for i, w in enumerate(withdrawals):
-            w.trade_offer_id = trade_offer_id
-            w.asset_id = skin_asset_ids[i]
-            w.status = "sending"
-        db.commit()
-
-        for w in withdrawals:
-            _log(db, "withdrawal", w.id, "trade_sent", trade_offer_id)
-        logger.info("Withdrawal trade %s sent for withdrawals %s", trade_offer_id, withdrawal_ids)
 
         poll_withdrawal_trade_status.apply_async(
             args=[trade_offer_id, withdrawal_ids],
@@ -296,14 +308,16 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
 
     except Exception as exc:
         logger.error("send_withdrawal_trade error: %s", exc)
-        db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
-        db.commit()
         try:
             for w_id in withdrawal_ids:
                 _log(db, "withdrawal", w_id, "error", str(exc))
         except Exception:
             pass
-        raise self.retry(exc=exc, countdown=30)
+        try:
+            raise self.retry(exc=exc, countdown=30)
+        except MaxRetriesExceededError:
+            db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
+            db.commit()
     finally:
         db.close()
 
