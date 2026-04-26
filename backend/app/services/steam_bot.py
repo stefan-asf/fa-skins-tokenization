@@ -238,6 +238,11 @@ def request_items_from_user(
         raise RuntimeError(f"Trade offer creation failed: {error}")
     trade_offer_id = offer["tradeofferid"]
     logger.info("Deposit trade offer sent to %s: %s", user_steam_id, trade_offer_id)
+    try:
+        client.confirm_trade_offer(trade_offer_id)
+        logger.info("Trade offer %s confirmed via 2FA", trade_offer_id)
+    except Exception as e:
+        logger.warning("Could not confirm trade offer %s: %s", trade_offer_id, e)
     return trade_offer_id
 
 

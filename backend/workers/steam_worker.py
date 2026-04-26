@@ -120,6 +120,7 @@ def poll_deposit_trade_status(self, trade_offer_id: str, deposit_ids: list):
     db = SessionLocal()
     try:
         state = get_trade_offer_state(trade_offer_id)
+        logger.info("Trade offer %s current state: %d", trade_offer_id, state)
 
         if state == _STATE_ACCEPTED:
             deposits = db.query(Deposit).filter(Deposit.id.in_(deposit_ids)).all()
