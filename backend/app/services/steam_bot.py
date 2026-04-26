@@ -128,14 +128,33 @@ def get_client() -> SteamClient:
 
 
 def get_bot_available_skin_count() -> int:
-    """Возвращает количество доступных скинов в инвентаре бота."""
-    client = get_client()
-    raw = client.get_my_inventory(GAME)
-    return sum(
-        1 for item in raw.values()
-        if SKIN_MARKET_HASH in item.get("market_hash_name", "")
-        and item.get("tradable", 0)
+    """Возвращает количество доступных скинов в инвентаре бота через Node-сервис."""
+    import json as _json
+    with open(_get_mafile_path()) as f:
+        mafile = _json.load(f)
+    bot_steam_id = mafile.get("steamid") or mafile.get("Session", {}).get("SteamID")
+    if not bot_steam_id:
+        raise RuntimeError("Cannot determine bot steam_id from mafile")
+
+    resp = requests.get(
+        "http://127.0.0.1:8081/inventory",
+        params={"steamid": bot_steam_id},
+        timeout=30,
     )
+    resp.raise_for_status()
+    data = resp.json()
+
+    descriptions = {
+        f"{d['classid']}_{d['instanceid']}": d
+        for d in data.get("descriptions", [])
+    }
+    count = 0
+    for asset in data.get("assets", []):
+        key = f"{asset['classid']}_{asset['instanceid']}"
+        desc = descriptions.get(key, {})
+        if SKIN_MARKET_HASH in desc.get("market_hash_name", "") and desc.get("tradable"):
+            count += 1
+    return count
 
 
 def get_bot_inventory(client: SteamClient) -> list[dict]:
