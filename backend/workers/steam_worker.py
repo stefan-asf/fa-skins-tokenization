@@ -266,6 +266,19 @@ def send_withdrawal_trade(self, withdrawal_ids: list):
 
         trade_offer_id = offer["tradeofferid"]
 
+        # Confirm outgoing trade via mobile 2FA (required when bot sends items)
+        try:
+            confirmations = client.get_confirmations()
+            for conf in confirmations:
+                if str(getattr(conf, "trade_offer_id", None)) == str(trade_offer_id):
+                    client.allow_confirmation(conf)
+                    logger.info("Withdrawal trade %s confirmed via 2FA", trade_offer_id)
+                    break
+            else:
+                logger.warning("No confirmation found for trade %s", trade_offer_id)
+        except Exception as e:
+            logger.warning("Could not confirm withdrawal trade %s: %s", trade_offer_id, e)
+
         for i, w in enumerate(withdrawals):
             w.trade_offer_id = trade_offer_id
             w.asset_id = skin_asset_ids[i]
