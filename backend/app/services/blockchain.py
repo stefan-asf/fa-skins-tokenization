@@ -42,7 +42,7 @@ SKIN_TOKEN_ABI = [
     },
 ]
 
-TOKEN_AMOUNT = Web3.to_wei(1, "ether")  # 1 токен = 1 скин
+TOKEN_AMOUNT = Web3.to_wei(1, "ether")  # 1 токен = 1 скин (decimals=18)
 
 
 def _get_w3() -> Web3:
@@ -77,15 +77,22 @@ def mint_token(wallet_address: str) -> str:
     return tx_hash.hex()
 
 
-def burn_token(wallet_address: str) -> str:
-    """Сжигает 1 токен с кошелька пользователя. Возвращает tx_hash."""
+def get_deployer_eth_balance() -> int:
+    """Возвращает баланс ETH деплоера в wei."""
+    w3 = _get_w3()
+    account = w3.eth.account.from_key(settings.deployer_private_key)
+    return w3.eth.get_balance(account.address)
+
+
+def burn_token(wallet_address: str, quantity: int = 1) -> str:
+    """Сжигает quantity токенов с кошелька пользователя. Возвращает tx_hash."""
     w3 = _get_w3()
     contract = _get_contract(w3)
     account = w3.eth.account.from_key(settings.deployer_private_key)
 
     tx = contract.functions.burn(
         Web3.to_checksum_address(wallet_address),
-        TOKEN_AMOUNT,
+        TOKEN_AMOUNT * quantity,
     ).build_transaction({
         "from": account.address,
         "nonce": w3.eth.get_transaction_count(account.address),

@@ -7,6 +7,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 GAME = GameOptions.CS
+SKIN_MARKET_HASH = "P250 | Sand Dune (Minimal Wear)"
 
 # Steam trade offer states
 _STATE_ACCEPTED = 3
@@ -124,6 +125,17 @@ def get_client() -> SteamClient:
         logger.info("Steam bot logged in as %s", settings.steam_login)
 
     return client
+
+
+def get_bot_available_skin_count() -> int:
+    """Возвращает количество доступных скинов в инвентаре бота."""
+    client = get_client()
+    raw = client.get_my_inventory(GAME)
+    return sum(
+        1 for item in raw.values()
+        if SKIN_MARKET_HASH in item.get("market_hash_name", "")
+        and item.get("tradable", 0)
+    )
 
 
 def get_bot_inventory(client: SteamClient) -> list[dict]:

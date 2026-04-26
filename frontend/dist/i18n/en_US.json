@@ -33,15 +33,15 @@
     "status_failed": "Deposit failed. Please try again."
   },
   "withdraw_modal": {
-    "title": "Withdraw Skin",
-    "balance_label": "Your token balance",
-    "trade_url_label": "Your Steam Trade URL",
-    "trade_url_placeholder": "https://steamcommunity.com/tradeoffer/new/?partner=...",
-    "confirm_btn": "Burn token & receive skin",
-    "status_burning": "Burning token",
-    "status_sending": "Bot is sending skin",
-    "status_delivered": "Delivered",
-    "status_failed": "Failed",
+    "title": "Withdraw Skins",
+    "balance_label": "Available tokens: ",
+    "quantity_label": "Number of skins to withdraw",
+    "trade_url_info": "Trade offer will be sent to your saved Steam Trade URL",
+    "confirm_btn": "Burn & Withdraw",
+    "status_burning": "Burning tokens...",
+    "status_sending": "Bot is sending your skin(s) — accept the trade in Steam",
+    "status_delivered": "Delivered!",
+    "status_failed": "Failed. Please try again.",
     "no_tokens": "You have no tokens to withdraw"
   },
   "trade_url": {

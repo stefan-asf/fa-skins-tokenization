@@ -206,38 +206,122 @@ def accept_deposit_trade(self, deposit_id: int, trade_offer_id: str):
 
 
 @celery_app.task(name="steam.send_withdrawal_trade", bind=True, max_retries=3)
-def send_withdrawal_trade(self, withdrawal_id: int):
+def send_withdrawal_trade(self, withdrawal_ids: list):
     """
-    Отправляет скин пользователю (вывод).
-    Вызывается blockchain_worker'ом после события TokensBurned.
+    Находит N скинов в инвентаре бота и отправляет один трейд-оффер пользователю.
+    Вызывается blockchain_worker'ом после сжигания токенов.
     """
+    from app.services.steam_bot import SKIN_MARKET_HASH, GAME
     db = SessionLocal()
     try:
-        withdrawal = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
-        if not withdrawal:
-            logger.error("Withdrawal %d not found", withdrawal_id)
+        withdrawals = db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).all()
+        if not withdrawals:
+            logger.error("No withdrawals found for ids: %s", withdrawal_ids)
             return
 
+        n = len(withdrawals)
+        first = withdrawals[0]
         client = get_client()
-        trade_offer_id = send_trade_offer(
-            client=client,
-            trade_url=withdrawal.trade_url,
-            asset_ids=[withdrawal.asset_id],
+
+        # Find N target skins in bot inventory
+        raw_inv = client.get_my_inventory(GAME)
+        skin_items = [
+            (asset_id, item)
+            for asset_id, item in raw_inv.items()
+            if SKIN_MARKET_HASH in item.get("market_hash_name", "")
+            and item.get("tradable", 0)
+        ][:n]
+
+        if len(skin_items) < n:
+            raise RuntimeError(
+                f"Bot only has {len(skin_items)} tradable skin(s), need {n}"
+            )
+
+        items_to_send = [item for _, item in skin_items]
+        offer = client.make_offer_with_url(
+            items_from_me=items_to_send,
+            items_from_them=[],
+            trade_offer_url=first.trade_url,
             message="FA Skins — your skin withdrawal",
         )
+        logger.info("make_offer_with_url response: %s", offer)
+        if not offer or "tradeofferid" not in offer:
+            error = offer.get("strError") if offer else "null response"
+            raise RuntimeError(f"Trade offer creation failed: {error}")
 
-        withdrawal.trade_offer_id = trade_offer_id
-        withdrawal.status = "sending"
+        trade_offer_id = offer["tradeofferid"]
+
+        for i, w in enumerate(withdrawals):
+            w.trade_offer_id = trade_offer_id
+            w.asset_id = skin_items[i][0]
+            w.status = "sending"
         db.commit()
-        _log(db, "withdrawal", withdrawal_id, "trade_sent", trade_offer_id)
-        logger.info("Withdrawal %d trade sent: %s", withdrawal_id, trade_offer_id)
+
+        for w in withdrawals:
+            _log(db, "withdrawal", w.id, "trade_sent", trade_offer_id)
+        logger.info("Withdrawal trade %s sent for withdrawals %s", trade_offer_id, withdrawal_ids)
+
+        poll_withdrawal_trade_status.apply_async(
+            args=[trade_offer_id, withdrawal_ids],
+            countdown=30,
+        )
 
     except Exception as exc:
         logger.error("send_withdrawal_trade error: %s", exc)
-        db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).update({"status": "failed"})
+        db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
         db.commit()
-        _log(db, "withdrawal", withdrawal_id, "error", str(exc))
+        try:
+            for w_id in withdrawal_ids:
+                _log(db, "withdrawal", w_id, "error", str(exc))
+        except Exception:
+            pass
         raise self.retry(exc=exc, countdown=30)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="steam.poll_withdrawal_trade_status", bind=True, max_retries=60)
+def poll_withdrawal_trade_status(self, trade_offer_id: str, withdrawal_ids: list):
+    """
+    Проверяет каждые 30 секунд, принял ли пользователь трейд вывода.
+    При принятии — переводит все записи в 'delivered'.
+    """
+    from celery.exceptions import Retry, MaxRetriesExceededError
+
+    db = SessionLocal()
+    try:
+        state = get_trade_offer_state(trade_offer_id)
+        logger.info("Withdrawal trade %s current state: %d", trade_offer_id, state)
+
+        if state == _STATE_ACCEPTED:
+            db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "delivered"})
+            db.commit()
+            for w_id in withdrawal_ids:
+                _log(db, "withdrawal", w_id, "delivered", trade_offer_id)
+            logger.info("Withdrawal trade %s accepted, withdrawals delivered", trade_offer_id)
+
+        elif state in _STATE_TERMINAL:
+            db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
+            db.commit()
+            for w_id in withdrawal_ids:
+                _log(db, "withdrawal", w_id, "trade_failed", f"state={state}")
+            logger.warning("Withdrawal trade %s terminal state %d", trade_offer_id, state)
+
+        else:
+            try:
+                raise self.retry(countdown=30)
+            except MaxRetriesExceededError:
+                db.query(Withdrawal).filter(Withdrawal.id.in_(withdrawal_ids)).update({"status": "failed"})
+                db.commit()
+
+    except Retry:
+        raise
+    except Exception as exc:
+        logger.error("poll_withdrawal_trade_status error: %s", exc)
+        try:
+            raise self.retry(exc=exc, countdown=30)
+        except MaxRetriesExceededError:
+            pass
     finally:
         db.close()
 

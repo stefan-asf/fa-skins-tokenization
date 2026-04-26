@@ -38,11 +38,11 @@ export const api = {
       body: JSON.stringify({ assets }),
     }),
   getDeposit: (id) => req(`/deposit/${id}`),
-  createWithdrawal: (trade_url) =>
+  createWithdrawal: (quantity) =>
     req("/withdraw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trade_url }),
+      body: JSON.stringify({ quantity }),
     }),
   getWithdrawal: (id) => req(`/withdraw/${id}`),
   getHistory: () => req("/history"),

@@ -290,17 +290,21 @@ function pollDepositBatch(depositIds) {
 
 // ── Withdraw ─────────────────────────────────────────────────────────────────
 function openWithdrawModal() {
-  const m = $("withdraw-modal");
   $("withdraw-modal-title").textContent = t("withdraw_modal.title");
   $("withdraw-balance-label").textContent = t("withdraw_modal.balance_label");
   $("withdraw-balance-value").textContent = `${state.balance} P250SD`;
-  $("withdraw-trade-url-label").textContent = t("withdraw_modal.trade_url_label");
-  $("withdraw-trade-url").placeholder = t("withdraw_modal.trade_url_placeholder");
+  $("withdraw-quantity-label").textContent = t("withdraw_modal.quantity_label");
+  $("withdraw-trade-url-info").textContent = t("withdraw_modal.trade_url_info");
   $("withdraw-confirm-btn").textContent = t("withdraw_modal.confirm_btn");
   $("withdraw-status").textContent = "";
   $("withdraw-status").className = "status-bar";
+
+  const qInput = $("withdraw-quantity");
+  qInput.max = state.balance;
+  qInput.value = Math.min(1, state.balance);
+
   $("withdraw-confirm-btn").disabled = state.balance === 0;
-  m.classList.remove("hidden");
+  $("withdraw-modal").classList.remove("hidden");
   $("modal-overlay").classList.remove("hidden");
 }
 
@@ -316,35 +320,41 @@ function setWithdrawStatus(text, cls) {
 }
 
 async function submitWithdraw() {
-  const tradeUrl = $("withdraw-trade-url").value.trim();
-  if (!tradeUrl) return;
+  const quantity = Math.max(1, parseInt($("withdraw-quantity").value) || 1);
+  if (quantity > state.balance) return;
+
   const btn = $("withdraw-confirm-btn");
   btn.disabled = true;
   setWithdrawStatus(t("withdraw_modal.status_burning"), "pending");
 
   try {
-    const w = await api.createWithdrawal(tradeUrl);
-    pollWithdrawStatus(w.id);
+    const w = await api.createWithdrawal(quantity);
+    pollWithdrawBatch(w.ids || [w.id]);
   } catch (e) {
     setWithdrawStatus(e.message, "failed");
     btn.disabled = false;
   }
 }
 
-function pollWithdrawStatus(id) {
+function pollWithdrawBatch(ids) {
   const timer = setInterval(async () => {
     try {
-      const w = await api.getWithdrawal(id);
-      if (w.status === "sending") {
-        setWithdrawStatus(t("withdraw_modal.status_sending"), "pending");
-      } else if (w.status === "delivered") {
+      const statuses = await Promise.all(ids.map((id) => api.getWithdrawal(id)));
+      const allDelivered = statuses.every((w) => w.status === "delivered");
+      const anyFailed = statuses.some((w) => w.status === "failed");
+      const anySending = statuses.some((w) => w.status === "sending");
+
+      if (allDelivered) {
         setWithdrawStatus(t("withdraw_modal.status_delivered"), "success");
         clearInterval(timer);
         await refreshBalance();
         renderHero();
-      } else if (w.status === "failed") {
+      } else if (anyFailed) {
         setWithdrawStatus(t("withdraw_modal.status_failed"), "failed");
         clearInterval(timer);
+        $("withdraw-confirm-btn").disabled = false;
+      } else if (anySending) {
+        setWithdrawStatus(t("withdraw_modal.status_sending"), "pending");
       }
     } catch {}
   }, 5000);
