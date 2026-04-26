@@ -131,10 +131,9 @@ def poll_deposit_trade_status(self, trade_offer_id: str, deposit_ids: list):
             for d in deposits:
                 _log(db, "deposit", d.id, "trade_accepted", trade_offer_id)
 
-            logger.info("Trade offer %s accepted, queuing mint for %s", trade_offer_id, deposit_ids)
-            from workers.blockchain_worker import mint_for_deposit
-            for d in deposits:
-                mint_for_deposit.delay(d.id)
+            logger.info("Trade offer %s accepted, queuing batch mint for %s", trade_offer_id, deposit_ids)
+            from workers.blockchain_worker import mint_for_deposit_batch
+            mint_for_deposit_batch.delay(deposit_ids)
 
         elif state in _STATE_TERMINAL:
             deposits = db.query(Deposit).filter(Deposit.id.in_(deposit_ids)).all()

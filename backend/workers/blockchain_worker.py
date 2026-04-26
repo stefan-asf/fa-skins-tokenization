@@ -29,8 +29,7 @@ def _log(db, operation_type: str, operation_id: int, event: str, details: str = 
 @celery_app.task(name="blockchain.mint_for_deposit", bind=True, max_retries=3)
 def mint_for_deposit(self, deposit_id: int):
     """
-    Минтит 1 токен на кошелёк пользователя после принятия трейда.
-    Вызывается steam_worker'ом после статуса 'accepted'.
+    Минтит 1 токен за один депозит (legacy, используется для одиночных депозитов).
     """
     db = SessionLocal()
     try:
@@ -43,7 +42,7 @@ def mint_for_deposit(self, deposit_id: int):
             logger.warning("Deposit %d status is '%s', expected 'accepted'", deposit_id, deposit.status)
             return
 
-        tx_hash = mint_token(deposit.wallet_address)
+        tx_hash = mint_token(deposit.wallet_address, quantity=1)
         deposit.status = "minted"
         deposit.tx_hash = tx_hash
         db.commit()
@@ -55,6 +54,47 @@ def mint_for_deposit(self, deposit_id: int):
         db.query(Deposit).filter(Deposit.id == deposit_id).update({"status": "failed"})
         db.commit()
         _log(db, "deposit", deposit_id, "mint_failed", str(exc))
+        raise self.retry(exc=exc, countdown=30)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="blockchain.mint_for_deposit_batch", bind=True, max_retries=3)
+def mint_for_deposit_batch(self, deposit_ids: list):
+    """
+    Минтит N токенов за один вызов (один tx) для всего батча депозитов.
+    Избегает nonce-конфликтов при параллельных транзакциях.
+    """
+    db = SessionLocal()
+    try:
+        deposits = db.query(Deposit).filter(Deposit.id.in_(deposit_ids)).all()
+        if not deposits:
+            logger.error("No deposits found for ids: %s", deposit_ids)
+            return
+
+        wallet_address = deposits[0].wallet_address
+        quantity = len(deposits)
+
+        tx_hash = mint_token(wallet_address, quantity=quantity)
+        logger.info("Batch minted %d token(s) for deposits %s, tx: %s", quantity, deposit_ids, tx_hash)
+
+        for d in deposits:
+            d.status = "minted"
+            d.tx_hash = tx_hash
+        db.commit()
+
+        for d in deposits:
+            _log(db, "deposit", d.id, "minted", tx_hash)
+
+    except Exception as exc:
+        logger.error("mint_for_deposit_batch error: %s", exc)
+        db.query(Deposit).filter(Deposit.id.in_(deposit_ids)).update({"status": "failed"})
+        db.commit()
+        try:
+            for d_id in deposit_ids:
+                _log(db, "deposit", d_id, "mint_failed", str(exc))
+        except Exception:
+            pass
         raise self.retry(exc=exc, countdown=30)
     finally:
         db.close()

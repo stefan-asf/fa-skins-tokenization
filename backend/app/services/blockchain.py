@@ -56,15 +56,15 @@ def _get_contract(w3: Web3):
     )
 
 
-def mint_token(wallet_address: str) -> str:
-    """Минтит 1 токен на кошелёк пользователя. Возвращает tx_hash."""
+def mint_token(wallet_address: str, quantity: int = 1) -> str:
+    """Минтит quantity токенов на кошелёк пользователя. Возвращает tx_hash."""
     w3 = _get_w3()
     contract = _get_contract(w3)
     account = w3.eth.account.from_key(settings.deployer_private_key)
 
     tx = contract.functions.mint(
         Web3.to_checksum_address(wallet_address),
-        TOKEN_AMOUNT,
+        TOKEN_AMOUNT * quantity,
     ).build_transaction({
         "from": account.address,
         "nonce": w3.eth.get_transaction_count(account.address),
