@@ -43,15 +43,14 @@ def create_withdrawal(
             detail="Insufficient deployer ETH balance for gas fees",
         )
 
-    from app.services.steam_bot import get_bot_available_skin_count
-    try:
-        bot_count = get_bot_available_skin_count()
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Cannot check bot inventory: {e}")
-    if bot_count < body.quantity:
+    from app.models.deposit import Deposit
+    minted = db.query(Deposit).filter(Deposit.status == "minted").count()
+    delivered = db.query(Withdrawal).filter(Withdrawal.status == "delivered").count()
+    bot_skins = minted - delivered
+    if bot_skins < body.quantity:
         raise HTTPException(
             status_code=503,
-            detail=f"Bot only has {bot_count} skin(s) available, need {body.quantity}",
+            detail=f"Bot only has {bot_skins} skin(s) available, need {body.quantity}",
         )
 
     withdrawals = []
